@@ -145,7 +145,7 @@ async function incrementLoginAttempts(userId: string) {
   if (error) return;
 
   const attempts = (data?.login_attempts || 0) + 1;
-  const updateData: unknown = { login_attempts: attempts };
+  const updateData: { login_attempts: number; account_locked_until?: string } = { login_attempts: attempts };
 
   // 如果达到最大尝试次数，锁定账户
   if (attempts >= MAX_LOGIN_ATTEMPTS) {
@@ -326,7 +326,7 @@ export async function updateUser(userId: string, data: Partial<User>): Promise<{
       created_at,
       updated_at,
       ...updateData
-    } = data as unknown;
+    } = data;
 
     const { data: updatedUser, error } = await supabase
       .from(Tables.USERS)

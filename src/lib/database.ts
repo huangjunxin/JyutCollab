@@ -30,19 +30,23 @@ export const Tables = {
 export function handleDatabaseError(error: unknown): string {
   console.error('Database error:', error);
   
-  if (error?.code === 'PGRST301') {
-    return '您没有权限执行此操作';
+  if (error && typeof error === 'object' && 'code' in error) {
+    if (error.code === 'PGRST301') {
+      return '您没有权限执行此操作';
+    }
+    
+    if (error.code === '23505') {
+      return '数据已存在，请检查是否重复提交';
+    }
+    
+    if (error.code === '23503') {
+      return '相关数据不存在，请检查关联信息';
+    }
   }
   
-  if (error?.code === '23505') {
-    return '数据已存在，请检查是否重复提交';
-  }
-  
-  if (error?.code === '23503') {
-    return '相关数据不存在，请检查关联信息';
-  }
-  
-  return error?.message || '数据库操作失败，请稍后重试';
+  return (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') 
+    ? error.message 
+    : '数据库操作失败，请稍后重试';
 }
 
 // 辅助函数：构建搜索查询
