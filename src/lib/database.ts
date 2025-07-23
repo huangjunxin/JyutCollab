@@ -1,4 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import type { User } from '@/types';
+
+// Type for Supabase query builders
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQuery = any;
 
 // Supabase 配置
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -50,7 +55,7 @@ export function handleDatabaseError(error: unknown): string {
 }
 
 // 辅助函数：构建搜索查询
-export function buildSearchQuery(baseQuery: unknown, searchTerm?: string, searchFields: string[] = []) {
+export function buildSearchQuery(baseQuery: SupabaseQuery, searchTerm?: string, searchFields: string[] = []) {
   if (!searchTerm || searchFields.length === 0) {
     return baseQuery;
   }
@@ -64,7 +69,7 @@ export function buildSearchQuery(baseQuery: unknown, searchTerm?: string, search
 }
 
 // 辅助函数：应用筛选器
-export function applyFilters(query: unknown, filters: Record<string, unknown>) {
+export function applyFilters(query: SupabaseQuery, filters: Record<string, unknown>) {
   let filteredQuery = query;
   
   Object.entries(filters).forEach(([key, value]) => {
@@ -81,7 +86,7 @@ export function applyFilters(query: unknown, filters: Record<string, unknown>) {
 }
 
 // 辅助函数：应用分页
-export function applyPagination(query: unknown, page: number = 1, perPage: number = 20) {
+export function applyPagination(query: SupabaseQuery, page: number = 1, perPage: number = 20) {
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
   
@@ -89,7 +94,7 @@ export function applyPagination(query: unknown, page: number = 1, perPage: numbe
 }
 
 // 辅助函数：应用排序
-export function applySorting(query: unknown, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc') {
+export function applySorting(query: SupabaseQuery, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc') {
   if (!sortBy) {
     return query.order('created_at', { ascending: sortOrder === 'asc' });
   }
@@ -146,7 +151,7 @@ export async function getCurrentUser() {
 }
 
 // 检查用户权限
-export function checkUserPermission(user: unknown, requiredRole: 'contributor' | 'moderator' | 'admin'): boolean {
+export function checkUserPermission(user: User | null, requiredRole: 'contributor' | 'moderator' | 'admin'): boolean {
   if (!user) return false;
   
   const roleHierarchy = {
@@ -155,5 +160,5 @@ export function checkUserPermission(user: unknown, requiredRole: 'contributor' |
     'admin': 3
   };
   
-  return roleHierarchy[user.role as keyof typeof roleHierarchy] >= roleHierarchy[requiredRole];
+  return roleHierarchy[user.role] >= roleHierarchy[requiredRole];
 } 
