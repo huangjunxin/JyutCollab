@@ -61,6 +61,19 @@ interface UserInteraction {
   bookmarked: boolean;
 }
 
+interface RelatedExpression {
+  id: string;
+  text: string;
+  region: string;
+  theme_id_l1?: number;
+  theme_id_l2?: number;
+  theme_id_l3?: number;
+  phonetic_notation?: string;
+  like_count: number;
+  view_count: number;
+  created_at: string;
+}
+
 const regions = [
   { value: 'hongkong', label: '香港粤语', icon: '🇭🇰' },
   { value: 'guangzhou', label: '广州话', icon: '🇨🇳' },
@@ -89,7 +102,7 @@ export default function ExpressionDetailPage() {
   const [expression, setExpression] = useState<Expression | null>(null);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [examples, setExamples] = useState<Example[]>([]);
-  const [relatedExpressions, setRelatedExpressions] = useState<Expression[]>([]);
+  const [relatedExpressions, setRelatedExpressions] = useState<RelatedExpression[]>([]);
   const [userInteraction, setUserInteraction] = useState<UserInteraction>({ liked: false, bookmarked: false });
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -503,15 +516,15 @@ export default function ExpressionDetailPage() {
 
             {/* Properties */}
             <div className="flex flex-wrap gap-3">
-              {expression.formality_level && formalityLevels[expression.formality_level] && (
-                <Badge className={`text-xs ${formalityLevels[expression.formality_level].color}`}>
-                  {formalityLevels[expression.formality_level].icon} {formalityLevels[expression.formality_level].label}
+              {expression.formality_level && formalityLevels[expression.formality_level as keyof typeof formalityLevels] && (
+                <Badge className={`text-xs ${formalityLevels[expression.formality_level as keyof typeof formalityLevels].color}`}>
+                  {formalityLevels[expression.formality_level as keyof typeof formalityLevels].icon} {formalityLevels[expression.formality_level as keyof typeof formalityLevels].label}
                 </Badge>
               )}
               
-              {expression.frequency && frequencyLevels[expression.frequency] && (
-                <Badge className={`text-xs ${frequencyLevels[expression.frequency].color}`}>
-                  {frequencyLevels[expression.frequency].icon} {frequencyLevels[expression.frequency].label}
+              {expression.frequency && frequencyLevels[expression.frequency as keyof typeof frequencyLevels] && (
+                <Badge className={`text-xs ${frequencyLevels[expression.frequency as keyof typeof frequencyLevels].color}`}>
+                  {frequencyLevels[expression.frequency as keyof typeof frequencyLevels].icon} {frequencyLevels[expression.frequency as keyof typeof frequencyLevels].label}
                 </Badge>
               )}
             </div>
