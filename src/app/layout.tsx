@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { AuthProvider } from "@/contexts/auth-context";
+import { ThemeProvider } from "@/contexts/theme-context";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -34,13 +35,33 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className="h-full">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const theme = localStorage.getItem('theme');
+                  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  const applyTheme = theme === 'system' || !theme ? systemTheme : theme;
+                  if (applyTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} font-sans antialiased h-full`}>
-        <AuthProvider>
-          <div className="min-h-screen bg-background">
-            <Header />
-            {children}
-          </div>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <div className="min-h-screen bg-background">
+              <Header />
+              {children}
+            </div>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -14,10 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export function Header() {
   const { user, signOut, loading } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -65,6 +66,9 @@ export function Header() {
 
           {/* Right side actions */}
           <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Language Selector */}
             <Button variant="ghost" size="sm" className="hidden sm:flex">
               <Globe className="h-4 w-4 mr-1" />

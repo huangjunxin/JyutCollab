@@ -63,14 +63,14 @@ export default function LoginPage() {
             <span className="font-bold text-2xl text-foreground">JyutCollab</span>
           </Link>
           
-          <h2 className="text-3xl font-bold text-gray-900">欢迎回来</h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <h2 className="text-3xl font-bold text-foreground">欢迎回来</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
             登录您的账户继续使用
           </p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-card rounded-lg shadow-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
@@ -80,11 +80,11 @@ export default function LoginPage() {
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                 邮箱地址
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="email"
                   name="email"
@@ -101,11 +101,11 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
                 密码
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
                   name="password"
@@ -119,7 +119,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -140,7 +140,7 @@ export default function LoginPage() {
                   type="checkbox"
                   className="h-4 w-4 text-cantonese-600 focus:ring-cantonese-500 border-gray-300 rounded"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground">
                   记住我
                 </label>
               </div>
@@ -176,7 +176,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">或</span>
+                <span className="px-2 bg-card text-muted-foreground">或</span>
               </div>
             </div>
 
@@ -217,7 +217,7 @@ export default function LoginPage() {
 
           {/* Register Link */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               还没有账户？{' '}
               <Link href="/auth/register" className="font-medium text-cantonese-600 hover:text-cantonese-500">
                 立即注册
@@ -228,7 +228,7 @@ export default function LoginPage() {
 
         {/* Features */}
         <div className="text-center">
-          <div className="flex justify-center gap-4 text-xs text-gray-500">
+          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
             <Badge variant="secondary" className="bg-cantonese-100 text-cantonese-800">
               🎯 AI 智能分类
             </Badge>

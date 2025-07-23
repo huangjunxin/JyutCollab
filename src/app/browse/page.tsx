@@ -284,18 +284,18 @@ export default function BrowsePage() {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">浏览词条</h1>
-        <p className="text-gray-600">
+        <h1 className="text-3xl font-bold text-foreground mb-2">浏览词条</h1>
+        <p className="text-muted-foreground">
           探索丰富的粤语表达，发现语言的魅力
         </p>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+      <div className="bg-card rounded-lg shadow-sm border p-6 mb-6">
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="mb-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="搜索粤语表达..."
               className="pl-10 pr-32"
@@ -349,9 +349,9 @@ export default function BrowsePage() {
           </Button>
           
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">排序方式：</span>
+            <span className="text-sm text-muted-foreground">排序方式：</span>
             <select
-              className="text-sm border border-gray-300 rounded px-3 py-1"
+              className="text-sm border border-border rounded px-3 py-1 bg-background text-foreground"
               value={sortBy}
               onChange={(e) => {
                 setSortBy(e.target.value);
@@ -372,12 +372,12 @@ export default function BrowsePage() {
           <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Region Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 <MapPin className="inline h-4 w-4 mr-1" />
                 方言点
               </label>
               <select
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-border rounded px-3 py-2 bg-background text-foreground"
                 value={selectedRegion}
                 onChange={(e) => {
                   setSelectedRegion(e.target.value);
@@ -396,7 +396,7 @@ export default function BrowsePage() {
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-foreground">
                     <Hash className="inline h-4 w-4 mr-1" />
                     主题分类
                   </label>
@@ -431,14 +431,14 @@ export default function BrowsePage() {
                     {themeSearchTerm && (
                       <button
                         onClick={() => setThemeSearchTerm('')}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     )}
                   </div>
                   {themeSearchTerm && (
-                    <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                    <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                       <span>搜索 &quot;{themeSearchTerm}&quot; 的相关主题</span>
                       <span>
                         找到: 一级({getFilteredThemeCount(1)}) 
@@ -481,11 +481,11 @@ export default function BrowsePage() {
                  
                  {/* Level 1 Theme */}
                 <div className="mb-3">
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     一级主题 (大类)
                   </label>
                   <select
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
                     value={selectedThemeL1}
                     onChange={(e) => handleThemeChange(1, e.target.value)}
                   >
@@ -504,11 +504,11 @@ export default function BrowsePage() {
 
                 {/* Level 2 Theme */}
                 <div className="mb-3">
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     二级主题 (子类)
                   </label>
                   <select
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
                     value={selectedThemeL2}
                     onChange={(e) => handleThemeChange(2, e.target.value)}
                     disabled={selectedThemeL1 === 'all'}
@@ -533,17 +533,17 @@ export default function BrowsePage() {
                     ) : null}
                   </select>
                   {selectedThemeL1 === 'all' && (
-                    <p className="text-xs text-gray-500 mt-1">请先选择一级主题</p>
+                    <p className="text-xs text-muted-foreground mt-1">请先选择一级主题</p>
                   )}
                 </div>
 
                 {/* Level 3 Theme */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">
                     三级主题 (具体分类)
                   </label>
                   <select
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
                     value={selectedThemeL3}
                     onChange={(e) => handleThemeChange(3, e.target.value)}
                     disabled={selectedThemeL2 === 'all'}
@@ -568,7 +568,7 @@ export default function BrowsePage() {
                     ) : null}
                   </select>
                   {selectedThemeL2 === 'all' && (
-                    <p className="text-xs text-gray-500 mt-1">请先选择二级主题</p>
+                    <p className="text-xs text-muted-foreground mt-1">请先选择二级主题</p>
                   )}
                 </div>
               </div>
@@ -579,7 +579,7 @@ export default function BrowsePage() {
 
       {/* Results Info */}
       <div className="flex items-center justify-between mb-6">
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           {loading ? '搜索中...' : (
             (() => {
               const hasFilters = activeSearchQuery || selectedRegion !== 'all' || selectedThemeL1 !== 'all' || selectedThemeL2 !== 'all' || selectedThemeL3 !== 'all';
@@ -627,18 +627,18 @@ export default function BrowsePage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-lg border p-6 animate-pulse">
-              <div className="h-6 bg-gray-200 rounded mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div key={i} className="bg-card rounded-lg border p-6 animate-pulse">
+              <div className="h-6 bg-muted rounded mb-4"></div>
+              <div className="h-4 bg-muted rounded mb-2"></div>
+              <div className="h-4 bg-muted rounded w-3/4"></div>
             </div>
           ))}
         </div>
       ) : expressions.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">没有找到相关词条</h3>
-          <p className="text-gray-600 mb-4">
+          <h3 className="text-lg font-medium text-foreground mb-2">没有找到相关词条</h3>
+          <p className="text-muted-foreground mb-4">
             尝试调整搜索条件或筛选器
           </p>
           {user && (
@@ -652,7 +652,7 @@ export default function BrowsePage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {expressions.map((expression) => (
-            <div key={expression.id} className="bg-white rounded-lg border hover:shadow-md transition-shadow">
+            <div key={expression.id} className="bg-card rounded-lg border hover:shadow-md transition-shadow">
               <div className="p-6">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3">
@@ -666,7 +666,7 @@ export default function BrowsePage() {
 
                 {/* Pronunciation */}
                 {expression.phonetic_notation && (
-                  <p className="text-gray-600 mb-4 text-sm font-mono">
+                  <p className="text-muted-foreground mb-4 text-sm font-mono">
                     🗣️ {expression.phonetic_notation}
                     {expression.pronunciation_verified && (
                       <Badge variant="outline" className="ml-2 text-xs">
@@ -696,7 +696,7 @@ export default function BrowsePage() {
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center justify-between text-sm text-gray-500">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-4">
                     <span className="flex items-center gap-1">
                       <Eye className="h-4 w-4" />
@@ -715,7 +715,7 @@ export default function BrowsePage() {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 bg-gray-50 border-t">
+              <div className="px-6 py-4 bg-muted border-t">
                 <div className="flex items-center justify-center">
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/browse/${expression.id}`}>
@@ -747,7 +747,7 @@ export default function BrowsePage() {
             <div className="flex items-center gap-1">
               {generatePageNumbers().map((page, index) => (
                 page === '...' ? (
-                  <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">
+                  <span key={`ellipsis-${index}`} className="px-2 py-1 text-muted-foreground">
                     <MoreHorizontal className="h-4 w-4" />
                   </span>
                 ) : (
@@ -775,7 +775,7 @@ export default function BrowsePage() {
           </div>
           
           {/* Page Info */}
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             第 {currentPage} 页，共约 {totalPages} 页 ({estimatedTotal} 个词条)
           </p>
         </div>

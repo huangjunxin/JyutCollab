@@ -126,14 +126,14 @@ export default function RegisterPage() {
             <span className="font-bold text-2xl text-foreground">JyutCollab</span>
           </Link>
           
-          <h2 className="text-3xl font-bold text-gray-900">创建账户</h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <h2 className="text-3xl font-bold text-foreground">创建账户</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
             加入粤语传承的社区
           </p>
         </div>
 
         {/* Register Form */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-card rounded-lg shadow-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
@@ -143,11 +143,11 @@ export default function RegisterPage() {
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                邮箱地址 *
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                  邮箱地址 *
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="email"
                   name="email"
@@ -164,11 +164,11 @@ export default function RegisterPage() {
 
             {/* Username */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                用户名 *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+                              <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
+                  用户名 *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
                 <Input
                   id="username"
                   name="username"
@@ -181,16 +181,16 @@ export default function RegisterPage() {
                   onChange={handleInputChange}
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">用户名只能包含字母、数字和下划线</p>
+                              <p className="mt-1 text-xs text-muted-foreground">用户名只能包含字母、数字和下划线</p>
             </div>
 
             {/* Display Name */}
             <div>
-              <label htmlFor="display_name" className="block text-sm font-medium text-gray-700 mb-2">
-                显示名称
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                              <label htmlFor="display_name" className="block text-sm font-medium text-foreground mb-2">
+                  显示名称
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="display_name"
                   name="display_name"
@@ -206,11 +206,11 @@ export default function RegisterPage() {
 
             {/* Location */}
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                所在地区 *
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                              <label htmlFor="location" className="block text-sm font-medium text-foreground mb-2">
+                  所在地区 *
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="location"
                   name="location"
@@ -222,12 +222,12 @@ export default function RegisterPage() {
                   onChange={handleInputChange}
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">请输入您的所在地区，母语方言点将自动填充</p>
+                              <p className="mt-1 text-xs text-muted-foreground">请输入您的所在地区，母语方言点将自动填充</p>
             </div>
 
             {/* Native Dialect */}
             <div>
-              <label htmlFor="native_dialect" className="block text-sm font-medium text-gray-700 mb-2">
+                              <label htmlFor="native_dialect" className="block text-sm font-medium text-foreground mb-2">
                 母语方言点 *
               </label>
               <Input
@@ -239,16 +239,16 @@ export default function RegisterPage() {
                 value={formData.native_dialect}
                 onChange={handleInputChange}
               />
-              <p className="mt-1 text-xs text-gray-500">会根据地区自动填充，您可以进一步修改</p>
+                              <p className="mt-1 text-xs text-muted-foreground">会根据地区自动填充，您可以进一步修改</p>
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                密码 *
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+                  密码 *
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
                   name="password"
@@ -260,11 +260,11 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={handleInputChange}
                 />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
+                                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
                   ) : (
@@ -277,13 +277,13 @@ export default function RegisterPage() {
               {formData.password && (
                 <div className="mt-2">
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div className="flex-1 bg-muted rounded-full h-2">
                       <div 
                         className={`h-2 rounded-full transition-all ${getStrengthColor(passwordStrength)}`}
                         style={{ width: `${(passwordStrength / 5) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-muted-foreground">
                       密码强度: {getStrengthText(passwordStrength)}
                     </span>
                   </div>
@@ -293,11 +293,11 @@ export default function RegisterPage() {
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                确认密码 *
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
+                  确认密码 *
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -309,11 +309,11 @@ export default function RegisterPage() {
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                 />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
+                                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
                   {showConfirmPassword ? (
                     <EyeOff className="h-5 w-5" />
                   ) : (
@@ -341,7 +341,7 @@ export default function RegisterPage() {
                 required
                 className="h-4 w-4 text-cantonese-600 focus:ring-cantonese-500 border-gray-300 rounded mt-0.5"
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-900">
+                              <label htmlFor="terms" className="ml-2 block text-sm text-foreground">
                 我同意{' '}
                 <Link href="/terms" className="text-cantonese-600 hover:text-cantonese-500">
                   服务条款
@@ -374,7 +374,7 @@ export default function RegisterPage() {
 
           {/* Login Link */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               已有账户？{' '}
               <Link href="/auth/login" className="font-medium text-cantonese-600 hover:text-cantonese-500">
                 立即登录
@@ -385,7 +385,7 @@ export default function RegisterPage() {
 
         {/* Features */}
         <div className="text-center">
-          <div className="flex justify-center gap-4 text-xs text-gray-500">
+          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
             <Badge variant="secondary" className="bg-cantonese-100 text-cantonese-800">
               🎯 AI 智能分类
             </Badge>
