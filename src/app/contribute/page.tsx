@@ -36,6 +36,12 @@ interface Theme {
   parent_id?: number;
 }
 
+interface SpellCheckResult {
+  isCorrect: boolean;
+  explanation: string;
+  suggestions: string[];
+}
+
 interface FormData {
   text: string;
   convertedText: string; // 转换后的香港繁体文本
@@ -82,7 +88,7 @@ export default function ContributePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
-  const [spellCheckResult, setSpellCheckResult] = useState<any>(null);
+  const [spellCheckResult, setSpellCheckResult] = useState<SpellCheckResult | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState<FormData>({
@@ -342,7 +348,7 @@ export default function ContributePage() {
     }
   };
 
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = (field: string, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -738,7 +744,7 @@ export default function ContributePage() {
                 </div>
                 {searchTerm && (
                   <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
-                    <span>搜索 "{searchTerm}" 的相关主题</span>
+                    <span>搜索 &quot;{searchTerm}&quot; 的相关主题</span>
                     <span>
                       找到: 一级({getFilteredThemeCount(1)}) 
                       {formData.theme_id_l1 && ` 二级(${getFilteredThemeCount(2, formData.theme_id_l1)})`}
@@ -904,7 +910,7 @@ export default function ContributePage() {
                       value={def.formality}
                       onChange={(e) => {
                         const newDefs = [...formData.definitions];
-                        newDefs[index].formality = e.target.value as any;
+                        newDefs[index].formality = e.target.value as 'formal' | 'informal' | 'neutral';
                         updateFormData('definitions', newDefs);
                       }}
                       className="border border-gray-300 rounded px-3 py-2"

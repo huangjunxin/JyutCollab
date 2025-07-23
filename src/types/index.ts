@@ -23,7 +23,7 @@ export interface UserAchievement {
   achievement_name: string;
   description?: string;
   earned_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // 主题分类类型
@@ -170,7 +170,7 @@ export interface ExpressionFormData {
 }
 
 // API 响应类型
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;

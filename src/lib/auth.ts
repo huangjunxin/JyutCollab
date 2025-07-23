@@ -145,7 +145,7 @@ async function incrementLoginAttempts(userId: string) {
   if (error) return;
 
   const attempts = (data?.login_attempts || 0) + 1;
-  const updateData: any = { login_attempts: attempts };
+  const updateData: unknown = { login_attempts: attempts };
 
   // 如果达到最大尝试次数，锁定账户
   if (attempts >= MAX_LOGIN_ATTEMPTS) {
@@ -231,7 +231,7 @@ export async function registerUser(data: RegisterData): Promise<{ user?: User; e
       user: newUser as User, 
       token,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Registration error:', err);
     return { error: '注册时发生错误' };
   }
@@ -281,7 +281,7 @@ export async function loginUser(data: LoginData): Promise<{ user?: User; error?:
       user: userInfo as User, 
       token 
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Login error:', err);
     return { error: '登录时发生错误' };
   }
@@ -326,7 +326,7 @@ export async function updateUser(userId: string, data: Partial<User>): Promise<{
       created_at,
       updated_at,
       ...updateData
-    } = data as any;
+    } = data as unknown;
 
     const { data: updatedUser, error } = await supabase
       .from(Tables.USERS)
@@ -347,7 +347,7 @@ export async function updateUser(userId: string, data: Partial<User>): Promise<{
     }
 
     return { user: updatedUser as User };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('User update error:', err);
     return { error: '更新时发生错误' };
   }
@@ -387,7 +387,7 @@ export async function verifyEmail(token: string): Promise<{ success: boolean; er
     }
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Email verification error:', err);
     return { success: false, error: '验证时发生错误' };
   }
@@ -428,7 +428,7 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
     console.log(`Password reset token for ${email}: ${resetToken}`);
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Password reset request error:', err);
     return { success: false, error: '请求时发生错误' };
   }
@@ -472,7 +472,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
     }
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Password reset error:', err);
     return { success: false, error: '重置时发生错误' };
   }
@@ -524,7 +524,7 @@ export async function changePassword(userId: string, currentPassword: string, ne
     }
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Change password error:', err);
     return { success: false, error: '更改密码时发生错误' };
   }

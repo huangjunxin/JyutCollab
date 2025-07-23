@@ -97,7 +97,7 @@ export function delay(ms: number): Promise<void> {
 }
 
 // 防抖函数
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -110,7 +110,7 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 // 节流函数
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
@@ -142,7 +142,7 @@ export function deepClone<T>(obj: T): T {
   if (typeof obj === 'object') {
     const cloned = {} as T;
     Object.keys(obj).forEach(key => {
-      (cloned as any)[key] = deepClone((obj as any)[key]);
+      (cloned as Record<string, unknown>)[key] = deepClone((obj as Record<string, unknown>)[key]);
     });
     return cloned;
   }
@@ -257,7 +257,7 @@ export function calculatePagination(total: number, page: number, perPage: number
 }
 
 // URL 查询参数处理
-export function buildQueryString(params: Record<string, any>): string {
+export function buildQueryString(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams();
   
   Object.entries(params).forEach(([key, value]) => {

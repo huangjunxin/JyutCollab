@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         return { error: result.error || '注册失败' };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { error: error.message || '注册失败' };
     } finally {
       setLoading(false);
@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         return { error: result.error || '登录失败' };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { error: error.message || '登录失败' };
     } finally {
       setLoading(false);

@@ -331,7 +331,7 @@ export default function BrowsePage() {
           {searchQuery.trim() && needsConversion(searchQuery, convertToHongKongTraditional(searchQuery)) && (
             <div className="mt-2 flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-md">
               <ArrowRight className="h-3 w-3" />
-              <span>将以香港繁体 "{convertToHongKongTraditional(searchQuery)}" 进行搜索</span>
+              <span>将以香港繁体 &quot;{convertToHongKongTraditional(searchQuery)}&quot; 进行搜索</span>
             </div>
           )}
         </form>
@@ -439,7 +439,7 @@ export default function BrowsePage() {
                   </div>
                   {themeSearchTerm && (
                     <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
-                      <span>搜索 "{themeSearchTerm}" 的相关主题</span>
+                      <span>搜索 &quot;{themeSearchTerm}&quot; 的相关主题</span>
                       <span>
                         找到: 一级({getFilteredThemeCount(1)}) 
                         {selectedThemeL1 !== 'all' && ` 二级(${getFilteredThemeCount(2, parseInt(selectedThemeL1))})`}

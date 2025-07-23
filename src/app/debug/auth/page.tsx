@@ -37,7 +37,7 @@ export default function AuthDebugPage() {
       } else {
         addLog('Signup successful!');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       addLog(`Signup failed: ${err.message}`);
     } finally {
       setLoading(false);
@@ -59,7 +59,7 @@ export default function AuthDebugPage() {
       } else {
         addLog('Signin successful!');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       addLog(`Signin failed: ${err.message}`);
     } finally {
       setLoading(false);
@@ -86,7 +86,7 @@ export default function AuthDebugPage() {
       } else {
         addLog(`Profile found: ${JSON.stringify(data)}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       addLog(`Profile test failed: ${err.message}`);
     }
   };

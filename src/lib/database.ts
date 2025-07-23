@@ -27,7 +27,7 @@ export const Tables = {
 } as const;
 
 // 辅助函数：处理数据库错误
-export function handleDatabaseError(error: any): string {
+export function handleDatabaseError(error: unknown): string {
   console.error('Database error:', error);
   
   if (error?.code === 'PGRST301') {
@@ -46,7 +46,7 @@ export function handleDatabaseError(error: any): string {
 }
 
 // 辅助函数：构建搜索查询
-export function buildSearchQuery(baseQuery: any, searchTerm?: string, searchFields: string[] = []) {
+export function buildSearchQuery(baseQuery: unknown, searchTerm?: string, searchFields: string[] = []) {
   if (!searchTerm || searchFields.length === 0) {
     return baseQuery;
   }
@@ -60,7 +60,7 @@ export function buildSearchQuery(baseQuery: any, searchTerm?: string, searchFiel
 }
 
 // 辅助函数：应用筛选器
-export function applyFilters(query: any, filters: Record<string, any>) {
+export function applyFilters(query: unknown, filters: Record<string, unknown>) {
   let filteredQuery = query;
   
   Object.entries(filters).forEach(([key, value]) => {
@@ -77,7 +77,7 @@ export function applyFilters(query: any, filters: Record<string, any>) {
 }
 
 // 辅助函数：应用分页
-export function applyPagination(query: any, page: number = 1, perPage: number = 20) {
+export function applyPagination(query: unknown, page: number = 1, perPage: number = 20) {
   const from = (page - 1) * perPage;
   const to = from + perPage - 1;
   
@@ -85,7 +85,7 @@ export function applyPagination(query: any, page: number = 1, perPage: number = 
 }
 
 // 辅助函数：应用排序
-export function applySorting(query: any, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc') {
+export function applySorting(query: unknown, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc') {
   if (!sortBy) {
     return query.order('created_at', { ascending: sortOrder === 'asc' });
   }
@@ -96,7 +96,7 @@ export function applySorting(query: any, sortBy?: string, sortOrder: 'asc' | 'de
 // 实时订阅辅助函数
 export function subscribeToTable(
   tableName: string,
-  callback: (payload: any) => void,
+  callback: (payload: unknown) => void,
   filter?: string
 ) {
   const channel = supabase
@@ -142,7 +142,7 @@ export async function getCurrentUser() {
 }
 
 // 检查用户权限
-export function checkUserPermission(user: any, requiredRole: 'contributor' | 'moderator' | 'admin'): boolean {
+export function checkUserPermission(user: unknown, requiredRole: 'contributor' | 'moderator' | 'admin'): boolean {
   if (!user) return false;
   
   const roleHierarchy = {
