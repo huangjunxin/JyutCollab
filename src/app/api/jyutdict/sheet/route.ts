@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       jyutdictUrl = `https://jyutdict.org/api/v0.9/sheet?query=${encodeURIComponent(query || '')}&header`;
     } else {
       // Regular query request
-      jyutdictUrl = `https://jyutdict.org/api/v0.9/sheet?query=${encodeURIComponent(query)}&fuzzy`;
+      jyutdictUrl = `https://jyutdict.org/api/v0.9/sheet?query=${encodeURIComponent(query!)}&fuzzy`;
     }
     
     const response = await fetch(jyutdictUrl, {
