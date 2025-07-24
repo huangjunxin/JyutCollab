@@ -702,12 +702,14 @@ export default function ContributePage() {
                   {/* Step Circle */}
                   <div className={`
                     flex items-center justify-center w-12 h-12 rounded-full border-2 transition-colors
-                    ${isActive ? 'bg-cantonese-500 border-cantonese-500 text-white' : ''}
+                    ${isActive ? 'bg-orange-500 border-orange-500 text-white' : ''}
                     ${isCompleted ? 'bg-green-500 border-green-500 text-white' : ''}
                     ${!isActive && !isCompleted ? 'border-gray-300 text-gray-400' : ''}
                   `}>
                     {isCompleted ? (
-                      <Check className="h-6 w-6" />
+                      <Check className="h-6 w-6 text-white" />
+                    ) : isActive ? (
+                      <Play className="h-5 w-5 text-white fill-current" />
                     ) : (
                       <Icon className="h-6 w-6" />
                     )}
