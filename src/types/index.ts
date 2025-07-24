@@ -102,7 +102,7 @@ export interface ExpressionExample {
 export interface AISuggestion {
   id: string;
   expression_id?: string;
-  suggestion_type: 'theme_classification' | 'definition' | 'example' | 'spelling_check';
+  suggestion_type: 'theme_classification' | 'definition' | 'example';
   original_content?: string;
   suggested_content: string;
   confidence_score: number;

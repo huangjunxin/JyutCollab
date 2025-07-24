@@ -40,11 +40,49 @@ interface Theme {
   parent_id?: number;
 }
 
-interface SpellCheckResult {
-  isCorrect: boolean;
-  explanation: string;
-  suggestions: string[];
+// 泛粤典API类型定义
+interface JyutdictRegionData {
+  片區?: string;
+  市?: string;
+  管區?: string;
+  色?: string;
+  聲母?: string;
+  韻核?: string;
+  韻尾?: string;
+  聲調?: string;
+  IPA?: string;
+  註?: string;
 }
+
+interface JyutdictGeneralCharacter {
+  字: string;
+  韻書: unknown[][];
+  各地: JyutdictRegionData[][];
+}
+
+interface JyutdictSheetEntry {
+  id: string;
+  綜: string;
+  釋: string;
+  繁: string;
+  [key: string]: unknown;
+}
+
+interface JyutdictColumn {
+  id: number;
+  col: string;
+  is_city: number;
+  city?: string;
+  sub?: string;
+  fullname?: string;
+  color?: string;
+}
+
+interface JyutdictHeaderResponse {
+  __valid_options: JyutdictColumn[];
+}
+
+
 
 interface FormData {
   text: string;
@@ -92,7 +130,7 @@ export default function ContributePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
-  const [spellCheckResult, setSpellCheckResult] = useState<SpellCheckResult | null>(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   
   // 新增：搜索现有词条相关状态
@@ -112,6 +150,17 @@ export default function ContributePage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedAction, setSelectedAction] = useState<'new' | 'variant' | null>(null);
   const [selectedBaseExpression, setSelectedBaseExpression] = useState<string | null>(null);
+
+  // 泛粤典查询相关状态
+  const [jyutdictGeneralData, setJyutdictGeneralData] = useState<JyutdictGeneralCharacter[]>([]);
+  const [jyutdictSheetData, setJyutdictSheetData] = useState<{[key: string]: JyutdictSheetEntry[]}>({});
+  const [jyutdictColumns, setJyutdictColumns] = useState<JyutdictColumn[]>([]);
+  const [jyutdictLoading, setJyutdictLoading] = useState(false);
+  const [activeJyutdictTab, setActiveJyutdictTab] = useState<'general' | 'sheet'>('general');
+  const [activeCharTab, setActiveCharTab] = useState(0);
+  // 新增：展开状态管理
+  const [expandedGeneralChars, setExpandedGeneralChars] = useState<{[key: number]: boolean}>({});
+  const [expandedSheetChars, setExpandedSheetChars] = useState<{[key: string]: boolean}>({});
 
   const [formData, setFormData] = useState<FormData>({
     text: '',
@@ -192,6 +241,71 @@ export default function ContributePage() {
     setCurrentStep(3); // 进入AI辅助步骤
   };
 
+  // 泛粤典API调用函数
+  const queryJyutdict = async () => {
+    if (!formData.convertedText && !formData.text) return;
+    
+    const queryText = formData.convertedText || formData.text;
+    setJyutdictLoading(true);
+    
+    // 重置展开状态
+    setExpandedGeneralChars({});
+    setExpandedSheetChars({});
+    setActiveCharTab(0);
+    
+    try {
+      // 获取列定义（仅在首次加载时）
+      if (jyutdictColumns.length === 0) {
+        try {
+          const headerResponse = await fetch('/api/jyutdict/sheet?query=&header');
+          if (headerResponse.ok) {
+            const headerData: JyutdictHeaderResponse = await headerResponse.json();
+            setJyutdictColumns(headerData.__valid_options);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch column definitions:', err);
+        }
+      }
+      
+      // 查询通用字表（通过我们的后端代理）
+      const generalResponse = await fetch(`/api/jyutdict/general?query=${encodeURIComponent(queryText)}`);
+      if (generalResponse.ok) {
+        const generalData = await generalResponse.json();
+        if (!generalData.error) {
+          setJyutdictGeneralData(generalData);
+        }
+      }
+      
+      // 查询泛粤字表（分别查询每个字，通过我们的后端代理）
+      const sheetData: {[key: string]: JyutdictSheetEntry[]} = {};
+      for (const char of queryText) {
+        try {
+          const sheetResponse = await fetch(`/api/jyutdict/sheet?query=${encodeURIComponent(char)}`);
+          if (sheetResponse.ok) {
+            const charSheetData = await sheetResponse.json();
+            if (!charSheetData.error && Array.isArray(charSheetData) && charSheetData.length > 1) {
+              // 跳过第一个元素（表头映射），只取实际数据
+              const actualData = charSheetData.slice(1).filter((entry: unknown) => 
+                entry && typeof entry === 'object' && (entry as { id?: string }).id
+              ) as JyutdictSheetEntry[];
+              if (actualData.length > 0) {
+                sheetData[char] = actualData;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch sheet data for character: ${char}`, err);
+        }
+      }
+      setJyutdictSheetData(sheetData);
+    } catch (err) {
+      console.error('Failed to query Jyutdict:', err);
+      setError('查询泛粤典失败，请检查网络连接');
+    } finally {
+      setJyutdictLoading(false);
+    }
+  };
+
   // 新增：选择创建方言变体
   const handleSelectVariant = (baseExpressionId: string) => {
     setSelectedAction('variant');
@@ -215,7 +329,11 @@ export default function ContributePage() {
       }));
     }
     
-    setCurrentStep(4); // 跳过AI辅助，直接到补充信息
+            setCurrentStep(4); // 跳过AI辅助，直接到补充信息
+        // 自动查询泛粤典
+        if (formData.text.trim()) {
+          setTimeout(() => queryJyutdict(), 100);
+        }
   };
 
   // 检查用户登录状态
@@ -325,6 +443,10 @@ export default function ContributePage() {
 
       // 自动进入下一步
       setCurrentStep(4);
+      // 自动查询泛粤典
+      if (formData.text.trim()) {
+        setTimeout(() => queryJyutdict(), 100);
+      }
     } catch (err) {
       setError('AI 辅助功能暂时不可用，请手动填写');
     } finally {
@@ -391,6 +513,12 @@ export default function ContributePage() {
 
     if (!formData.definition.trim()) {
       setError('请输入释义');
+      return;
+    }
+
+    // 新增：发音信息必填
+    if (!formData.pronunciation.phonetic_notation.trim()) {
+      setError('请输入发音信息');
       return;
     }
 
@@ -496,50 +624,7 @@ export default function ContributePage() {
     return filterThemes(baseThemes, searchTerm).length;
   };
 
-  // 新增：拼写检查函数
-  const handleSpellCheck = async () => {
-    if (!formData.text.trim()) {
-      setError('请先输入粤语表达');
-      return false;
-    }
 
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const regionLabel = regions.find(r => r.value === formData.region)?.label || formData.region;
-      const textForAI = formData.convertedText || formData.text;
-      
-      const response = await fetch('/api/llm/spell-check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          expression: textForAI, 
-          region: regionLabel 
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('拼写检查失败');
-      }
-
-      const spellingData = await response.json();
-      setSpellCheckResult(spellingData);
-
-      // 如果拼写有问题，停留在当前步骤
-      if (!spellingData.isCorrect) {
-        setError('发现拼写建议，请查看下方提示并确认后继续');
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      setError('拼写检查功能暂时不可用，将继续进行下一步');
-      return true; // 拼写检查失败不阻止用户继续
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const nextStep = async () => {
     // 验证当前步骤的必填字段
@@ -548,14 +633,7 @@ export default function ContributePage() {
         setError('请输入粤语表达');
         return;
       }
-      
-      // Step 1 到 Step 2 之前，先进行拼写检查
-      const spellCheckPassed = await handleSpellCheck();
-      if (!spellCheckPassed) {
-        return; // 拼写检查有问题，停留在step1
-      }
-      
-      // 拼写检查通过后，搜索现有词条
+      // 直接搜索现有词条
       handleSearchExistingExpressions();
       return;
     } else if (currentStep === 4) {
@@ -567,11 +645,22 @@ export default function ContributePage() {
         setError('请输入释义');
         return;
       }
+      // 新增：发音信息必填
+      if (!formData.pronunciation.phonetic_notation.trim()) {
+        setError('请输入发音信息');
+        return;
+      }
     }
 
     setError(''); // 清除错误信息
     if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
+      const newStep = currentStep + 1;
+      setCurrentStep(newStep);
+      
+      // 自动查询泛粤典（当进入补充信息步骤时）
+      if (newStep === 4 && formData.text.trim() && jyutdictGeneralData.length === 0 && Object.keys(jyutdictSheetData).length === 0) {
+        setTimeout(() => queryJyutdict(), 100); // 稍微延迟以确保步骤切换完成
+      }
     }
   };
 
@@ -665,7 +754,7 @@ export default function ContributePage() {
             {/* Expression Text */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                粤语表达 *
+                粤语表达 <span className="text-red-500">*</span>
               </label>
               <Input
                 placeholder="例如：饮茶"
@@ -729,7 +818,7 @@ export default function ContributePage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <MapPin className="inline h-4 w-4 mr-1" />
-                所属方言点 *
+                所属方言点 <span className="text-red-500">*</span>
               </label>
               <select
                 className="w-full border border-gray-300 rounded-md px-3 py-2"
@@ -759,64 +848,7 @@ export default function ContributePage() {
               </p>
             </div>
 
-            {/* Spell Check */}
-            {spellCheckResult && (
-              <div className={`p-4 rounded-md ${spellCheckResult.isCorrect ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  {spellCheckResult.isCorrect ? (
-                    <>
-                      <Check className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">拼写正确</span>
-                    </>
-                  ) : (
-                    <>
-                      <X className="h-4 w-4 text-yellow-600" />
-                      <span className="text-sm font-medium text-yellow-800">拼写建议</span>
-                    </>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600">{spellCheckResult.explanation}</p>
-                {spellCheckResult.suggestions.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">建议:</p>
-                    <div className="flex gap-2 mb-3">
-                      {spellCheckResult.suggestions.map((suggestion: string, index: number) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleTextChange(suggestion)}
-                        >
-                          {suggestion}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {!spellCheckResult.isCorrect && (
-                  <div className="mt-3 pt-3 border-t border-yellow-200">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSearchExistingExpressions()}
-                        className="text-yellow-700 border-yellow-300 hover:bg-yellow-100"
-                      >
-                        忽略建议，继续下一步
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSpellCheckResult(null)}
-                        className="text-gray-600"
-                      >
-                        重新检查
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+
           </div>
         )}
 
@@ -1000,12 +1032,53 @@ export default function ContributePage() {
 
         {/* Step 4: Additional Information */}
         {currentStep === 4 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold mb-4">补充信息</h2>
+          <div className="space-y-8">
+            <h2 className="text-xl font-semibold mb-6">补充信息</h2>
+
+            {/* Current Expression Display */}
+            {formData.text.trim() && (
+              <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className={`p-1.5 rounded-full ${needsConversion(formData.text, formData.convertedText) ? 'bg-blue-100' : 'bg-green-100'}`}>
+                    {needsConversion(formData.text, formData.convertedText) ? (
+                      <ArrowRight className="h-4 w-4 text-blue-600" />
+                    ) : (
+                      <Check className="h-4 w-4 text-green-600" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="text-sm font-medium text-gray-900">当前词条</h4>
+                      <Info className="h-4 w-4 text-gray-400" />
+                    </div>
+                    
+                    {needsConversion(formData.text, formData.convertedText) ? (
+                      <div className="space-y-2">
+                        <div className="text-lg font-medium text-cantonese-700">
+                          {formData.convertedText}
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          {getConversionExplanation(formData.text, formData.convertedText)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-lg font-medium text-green-700">
+                          {formData.convertedText}
+                        </div>
+                        <p className="text-sm text-green-700">
+                          {getConversionExplanation(formData.text, formData.convertedText)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* AI推荐主题显示 */}
             {formData.theme_id_l3 && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-5 w-5 text-blue-600" />
                   <span className="font-medium text-blue-900">AI推荐主题分类</span>
@@ -1039,350 +1112,804 @@ export default function ContributePage() {
               </div>
             )}
 
-            {/* Theme Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-gray-700">
-                  <Hash className="inline h-4 w-4 mr-1" />
-                  主题分类 * {formData.theme_id_l3 ? '(可调整)' : ''}
-                </label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentStep(2)}
-                  className="text-xs"
-                  disabled={!formData.text}
-                >
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  AI智能分类
-                </Button>
+            {/* 📝 词条内容分类区域 */}
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Hash className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">词条分类</h3>
+                    <p className="text-sm text-gray-600">选择词条所属的主题分类，有助于用户更好地查找</p>
+                  </div>
+                </div>
               </div>
               
-              {/* Quick Theme Search */}
-              <div className="mb-4">
-                <div className="relative">
-                  <Input
-                    placeholder="🔍 快速搜索主题（如：饮食、情感、日常等）"
-                    className="text-sm pr-8"
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                    }}
-                  />
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-700">
+                    主题分类 <span className="text-red-500">*</span> {formData.theme_id_l3 ? '(可调整)' : ''}
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentStep(2)}
+                    className="text-xs"
+                    disabled={!formData.text}
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    AI智能分类
+                  </Button>
+                </div>
+                
+                {/* Quick Theme Search */}
+                <div className="mb-4">
+                  <div className="relative">
+                    <Input
+                      placeholder="🔍 快速搜索主题（如：饮食、情感、日常等）"
+                      className="text-sm pr-8"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                      }}
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                   {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+                      <span>搜索 &quot;{searchTerm}&quot; 的相关主题</span>
+                      <span>
+                        找到: 一级({getFilteredThemeCount(1)}) 
+                        {formData.theme_id_l1 && ` 二级(${getFilteredThemeCount(2, formData.theme_id_l1)})`}
+                        {formData.theme_id_l2 && ` 三级(${getFilteredThemeCount(3, formData.theme_id_l2)})`}
+                      </span>
+                    </div>
                   )}
                 </div>
-                {searchTerm && (
-                  <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
-                    <span>搜索 &quot;{searchTerm}&quot; 的相关主题</span>
-                    <span>
-                      找到: 一级({getFilteredThemeCount(1)}) 
-                      {formData.theme_id_l1 && ` 二级(${getFilteredThemeCount(2, formData.theme_id_l1)})`}
-                      {formData.theme_id_l2 && ` 三级(${getFilteredThemeCount(3, formData.theme_id_l2)})`}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Level 1 Theme */}
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  一级主题 (大类)
-                </label>
-                <select
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={formData.theme_id_l1 || ''}
-                  onChange={(e) => {
-                    const newL1 = e.target.value ? parseInt(e.target.value) : undefined;
-                    updateFormData('theme_id_l1', newL1);
-                    // 清空下级选择
-                    updateFormData('theme_id_l2', undefined);
-                    updateFormData('theme_id_l3', undefined);
-                  }}
-                >
-                  <option value="">请选择一级主题</option>
-                  {filterThemes(themes.filter(theme => theme.level === 1), searchTerm).length === 0 && searchTerm ? (
-                    <option disabled>没有找到匹配的一级主题</option>
-                  ) : (
-                    filterThemes(themes.filter(theme => theme.level === 1), searchTerm).map(theme => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.icon ? `${theme.icon} ` : '📂 '}{theme.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-
-              {/* Level 2 Theme */}
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  二级主题 (子类)
-                </label>
-                <select
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={formData.theme_id_l2 || ''}
-                  onChange={(e) => {
-                    const newL2 = e.target.value ? parseInt(e.target.value) : undefined;
-                    updateFormData('theme_id_l2', newL2);
-                    // 清空下级选择
-                    updateFormData('theme_id_l3', undefined);
-                  }}
-                  disabled={!formData.theme_id_l1}
-                >
-                  <option value="">请选择二级主题</option>
-                  {formData.theme_id_l1 ? (
-                    filterThemes(themes.filter(theme => 
-                      theme.level === 2 && 
-                      theme.parent_id === formData.theme_id_l1
-                    ), searchTerm).length === 0 && searchTerm ? (
-                      <option disabled>没有找到匹配的二级主题</option>
+                
+                {/* Level 1 Theme */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    一级主题 (大类)
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.theme_id_l1 || ''}
+                    onChange={(e) => {
+                      const newL1 = e.target.value ? parseInt(e.target.value) : undefined;
+                      updateFormData('theme_id_l1', newL1);
+                      // 清空下级选择
+                      updateFormData('theme_id_l2', undefined);
+                      updateFormData('theme_id_l3', undefined);
+                    }}
+                  >
+                    <option value="">请选择一级主题</option>
+                    {filterThemes(themes.filter(theme => theme.level === 1), searchTerm).length === 0 && searchTerm ? (
+                      <option disabled>没有找到匹配的一级主题</option>
                     ) : (
+                      filterThemes(themes.filter(theme => theme.level === 1), searchTerm).map(theme => (
+                        <option key={theme.id} value={theme.id}>
+                          {theme.icon ? `${theme.icon} ` : '📂 '}{theme.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                {/* Level 2 Theme */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    二级主题 (子类)
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.theme_id_l2 || ''}
+                    onChange={(e) => {
+                      const newL2 = e.target.value ? parseInt(e.target.value) : undefined;
+                      updateFormData('theme_id_l2', newL2);
+                      // 清空下级选择
+                      updateFormData('theme_id_l3', undefined);
+                    }}
+                    disabled={!formData.theme_id_l1}
+                  >
+                    <option value="">请选择二级主题</option>
+                    {formData.theme_id_l1 ? (
                       filterThemes(themes.filter(theme => 
                         theme.level === 2 && 
                         theme.parent_id === formData.theme_id_l1
-                      ), searchTerm).map(theme => (
-                        <option key={theme.id} value={theme.id}>
-                          {theme.icon ? `${theme.icon} ` : '📄 '}{theme.name}
-                        </option>
-                      ))
-                    )
-                  ) : null}
-                </select>
-                {!formData.theme_id_l1 && (
-                  <p className="text-xs text-gray-500 mt-1">请先选择一级主题</p>
-                )}
-              </div>
+                      ), searchTerm).length === 0 && searchTerm ? (
+                        <option disabled>没有找到匹配的二级主题</option>
+                      ) : (
+                        filterThemes(themes.filter(theme => 
+                          theme.level === 2 && 
+                          theme.parent_id === formData.theme_id_l1
+                        ), searchTerm).map(theme => (
+                          <option key={theme.id} value={theme.id}>
+                            {theme.icon ? `${theme.icon} ` : '📄 '}{theme.name}
+                          </option>
+                        ))
+                      )
+                    ) : null}
+                  </select>
+                  {!formData.theme_id_l1 && (
+                    <p className="text-xs text-gray-500 mt-1">请先选择一级主题</p>
+                  )}
+                </div>
 
-              {/* Level 3 Theme */}
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  三级主题 (具体分类)
-                </label>
-                <select
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={formData.theme_id_l3 || ''}
-                  onChange={(e) => updateFormData('theme_id_l3', e.target.value ? parseInt(e.target.value) : undefined)}
-                  disabled={!formData.theme_id_l2}
-                >
-                  <option value="">请选择三级主题</option>
-                  {formData.theme_id_l2 ? (
-                    filterThemes(themes.filter(theme => 
-                      theme.level === 3 && 
-                      theme.parent_id === formData.theme_id_l2
-                    ), searchTerm).length === 0 && searchTerm ? (
-                      <option disabled>没有找到匹配的三级主题</option>
-                    ) : (
+                {/* Level 3 Theme */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    三级主题 (具体分类)
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.theme_id_l3 || ''}
+                    onChange={(e) => updateFormData('theme_id_l3', e.target.value ? parseInt(e.target.value) : undefined)}
+                    disabled={!formData.theme_id_l2}
+                  >
+                    <option value="">请选择三级主题</option>
+                    {formData.theme_id_l2 ? (
                       filterThemes(themes.filter(theme => 
                         theme.level === 3 && 
                         theme.parent_id === formData.theme_id_l2
-                      ), searchTerm).map(theme => (
-                        <option key={theme.id} value={theme.id}>
-                          🎯 {theme.name}
-                        </option>
-                      ))
-                    )
-                  ) : null}
-                </select>
-                {!formData.theme_id_l2 && (
-                  <p className="text-xs text-gray-500 mt-1">请先选择二级主题</p>
+                      ), searchTerm).length === 0 && searchTerm ? (
+                        <option disabled>没有找到匹配的三级主题</option>
+                      ) : (
+                        filterThemes(themes.filter(theme => 
+                          theme.level === 3 && 
+                          theme.parent_id === formData.theme_id_l2
+                        ), searchTerm).map(theme => (
+                          <option key={theme.id} value={theme.id}>
+                            🎯 {theme.name}
+                          </option>
+                        ))
+                      )
+                    ) : null}
+                  </select>
+                  {!formData.theme_id_l2 && (
+                    <p className="text-xs text-gray-500 mt-1">请先选择二级主题</p>
+                  )}
+                </div>
+
+                {!formData.theme_id_l1 && !formData.theme_id_l2 && !formData.theme_id_l3 && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <div className="flex items-center gap-2">
+                      <Info className="h-4 w-4 text-yellow-600" />
+                      <p className="text-sm text-yellow-700">请至少选择一个主题分类，或使用AI辅助功能自动分类</p>
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {!formData.theme_id_l1 && !formData.theme_id_l2 && !formData.theme_id_l3 && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-yellow-600" />
-                    <p className="text-sm text-yellow-700">请至少选择一个主题分类，或使用AI辅助功能自动分类</p>
+            </div>
+            
+            {/* 📖 泛粤典参考区域 */}
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <BookOpen className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">泛粤典参考</h3>
+                      <p className="text-sm text-gray-600">查询现有字典资料，为您的词条提供参考</p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Definition */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                释义 *
-              </label>
-              <Textarea
-                placeholder="请输入词条的释义&#10;支持多行输入，可详细描述词条的含义、用法等"
-                value={formData.definition}
-                onChange={(e) => updateFormData('definition', e.target.value)}
-                className="mb-2 min-h-[100px]"
-                rows={4}
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                可以分段描述不同的含义，支持换行
-              </p>
-            </div>
-
-            {/* Usage Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                使用说明
-              </label>
-              <Textarea
-                placeholder="描述使用语境、注意事项等&#10;例如：&#10;• 用于日常对话&#10;• 正式场合避免使用&#10;• 地区使用差异等"
-                value={formData.usage_notes}
-                onChange={(e) => updateFormData('usage_notes', e.target.value)}
-                className="min-h-[100px]"
-                rows={4}
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                详细说明使用场景、注意事项、地区差异等，支持换行
-              </p>
-            </div>
-
-            {/* Formality Level and Frequency */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  正式程度
-                </label>
-                <select
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  value={formData.formality_level}
-                  onChange={(e) => updateFormData('formality_level', e.target.value)}
-                >
-                  <option value="">请选择</option>
-                  <option value="formal">正式</option>
-                  <option value="neutral">中性</option>
-                  <option value="informal">非正式</option>
-                  <option value="slang">俚语</option>
-                  <option value="vulgar">粗俗</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  使用频率
-                </label>
-                <select
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  value={formData.frequency}
-                  onChange={(e) => updateFormData('frequency', e.target.value)}
-                >
-                  <option value="">请选择</option>
-                  <option value="common">常见</option>
-                  <option value="uncommon">不常见</option>
-                  <option value="rare">罕见</option>
-                  <option value="obsolete">过时</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Examples */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  例句
-                </label>
-                <div className="flex gap-2">
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleGenerateExamples}
-                    disabled={aiLoading}
+                    onClick={queryJyutdict}
+                    disabled={jyutdictLoading || !formData.text.trim()}
                   >
-                    {aiLoading ? (
+                    {jyutdictLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-1" />
                     ) : (
-                      <Sparkles className="h-4 w-4 mr-1" />
+                      <Search className="h-4 w-4 mr-1" />
                     )}
-                    AI 生成
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    setFormData(prev => ({
-                      ...prev,
-                      examples: [...prev.examples, { sentence: '', explanation: '', scenario: '' }]
-                    }));
-                  }}>
-                    + 添加例句
+                    查询字音释义
                   </Button>
                 </div>
               </div>
-              {formData.examples.map((example, index) => (
-                <div key={index} className="border rounded-md p-4 mb-2">
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      例句
-                    </label>
-                    <Textarea
-                      placeholder="请输入完整的例句&#10;支持多行输入"
-                      value={example.sentence}
-                      onChange={(e) => {
-                        const newExamples = [...formData.examples];
-                        newExamples[index].sentence = e.target.value;
-                        updateFormData('examples', newExamples);
-                      }}
-                      className="min-h-[80px]"
-                      rows={3}
-                    />
+              
+              <div className="p-6">
+                {(jyutdictGeneralData.length > 0 || Object.keys(jyutdictSheetData).length > 0) ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 rounded-full bg-amber-100">
+                        <BookOpen className="h-4 w-4 text-amber-600" />
+                      </div>
+                      <h4 className="text-sm font-medium text-amber-900">
+                        泛粤典查询结果 - 供参考
+                      </h4>
+                    </div>
+
+                    {/* Tab Navigation */}
+                    <div className="flex gap-1 mb-3">
+                      <button
+                        className={`px-3 py-1 text-xs rounded ${
+                          activeJyutdictTab === 'general'
+                            ? 'bg-amber-200 text-amber-800'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        onClick={() => setActiveJyutdictTab('general')}
+                      >
+                        通用字表
+                      </button>
+                      <button
+                        className={`px-3 py-1 text-xs rounded ${
+                          activeJyutdictTab === 'sheet'
+                            ? 'bg-amber-200 text-amber-800'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        onClick={() => setActiveJyutdictTab('sheet')}
+                      >
+                        泛粤字表
+                      </button>
+                    </div>
+
+                    {/* General Dictionary Content */}
+                    {activeJyutdictTab === 'general' && jyutdictGeneralData.length > 0 && (
+                      <div className="space-y-2">
+                        {jyutdictGeneralData.map((char, index) => (
+                          <div key={index} className="bg-white border border-amber-200 rounded p-3">
+                            <div className="font-medium text-gray-900 mb-1">
+                              {char.字}
+                            </div>
+                            {char.各地 && Array.isArray(char.各地) && char.各地.length > 0 && (
+                              <div className="text-xs text-gray-600">
+                                <div className="flex flex-wrap gap-1">
+                                  {/* 显示前12个或全部（如果已展开） */}
+                                  {(() => {
+                                    // 收集所有发音数据
+                                    const allPronunciations: Array<{
+                                      regionGroup: unknown;
+                                      rgIndex: number;
+                                      region: JyutdictRegionData;
+                                      variantIndex: number;
+                                    }> = [];
+                                    
+                                    char.各地.forEach((regionGroup: unknown, rgIndex: number) => {
+                                      if (Array.isArray(regionGroup) && regionGroup.length > 0) {
+                                        regionGroup.forEach((region: JyutdictRegionData, variantIndex: number) => {
+                                          if (region && typeof region === 'object') {
+                                            allPronunciations.push({ regionGroup, rgIndex, region, variantIndex });
+                                          }
+                                        });
+                                      }
+                                    });
+                                    
+                                    // 根据展开状态决定显示数量
+                                    const displayPronunciations = expandedGeneralChars[index] 
+                                      ? allPronunciations 
+                                      : allPronunciations.slice(0, 12);
+                                    
+                                    return displayPronunciations.map(({ rgIndex, region, variantIndex }) => {
+                                      // 构建粤拼发音
+                                      const jyutpingPronunciation = [
+                                        region.聲母 || '',
+                                        region.韻核 || '',
+                                        region.韻尾 || '',
+                                        region.聲調 || ''
+                                      ].join('').trim() || region.IPA || '';
+                                      
+                                      // 获取地名和管区信息
+                                      const locationName = region.管區 ? `${region.市}(${region.管區})` : region.市;
+                                      
+                                      return (
+                                        <span 
+                                          key={`${rgIndex}-${variantIndex}`} 
+                                          className="px-1 py-0.5 rounded text-xs border"
+                                          style={{
+                                            backgroundColor: 'transparent',
+                                            borderColor: region.色 || '#d1d5db',
+                                            color: region.色 ? '#1f2937' : '#4b5563'
+                                          }}
+                                        >
+                                          <span style={{ color: region.色 || '#6b7280' }} className="font-medium">
+                                            {locationName}
+                                          </span>
+                                          <span className="font-mono ml-1">
+                                            {jyutpingPronunciation}
+                                          </span>
+                                          {region.註 && (
+                                            <span className="text-gray-500 ml-1" title={region.註}>
+                                              *
+                                            </span>
+                                          )}
+                                        </span>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+                                {/* 展开/收起按钮 */}
+                                {(() => {
+                                  // 计算总发音数量
+                                  const totalPronunciations = char.各地.reduce((acc, regionGroup) => {
+                                    if (Array.isArray(regionGroup)) {
+                                      return acc + regionGroup.filter(region => region && typeof region === 'object').length;
+                                    }
+                                    return acc;
+                                  }, 0);
+                                  
+                                  return totalPronunciations > 12 && (
+                                    <button
+                                      onClick={() => setExpandedGeneralChars(prev => ({
+                                        ...prev,
+                                        [index]: !prev[index]
+                                      }))}
+                                      className="text-amber-600 hover:text-amber-800 text-xs mt-1 underline"
+                                    >
+                                      {expandedGeneralChars[index] 
+                                        ? '收起' 
+                                        : `+${totalPronunciations - 12}更多地区发音...`
+                                      }
+                                    </button>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Sheet Dictionary Content */}
+                    {activeJyutdictTab === 'sheet' && Object.keys(jyutdictSheetData).length > 0 && (
+                      <div>
+                        {/* Character Tabs */}
+                        {Object.keys(jyutdictSheetData).length > 1 && (
+                          <div className="flex gap-1 mb-2">
+                            {Object.keys(jyutdictSheetData).map((char, index) => (
+                              <button
+                                key={char}
+                                className={`px-2 py-1 text-sm rounded ${
+                                  activeCharTab === index
+                                    ? 'bg-amber-300 text-amber-900'
+                                    : 'bg-white border border-amber-200 text-amber-700 hover:bg-amber-100'
+                                }`}
+                                onClick={() => setActiveCharTab(index)}
+                              >
+                                {char}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Active Character Data */}
+                        {(() => {
+                          const chars = Object.keys(jyutdictSheetData);
+                          const activeChar = chars[activeCharTab] || chars[0]; // 确保有默认值
+                          const charData = jyutdictSheetData[activeChar];
+                          
+                          if (!charData || !Array.isArray(charData) || charData.length === 0) {
+                            return (
+                              <div className="text-center py-4 text-gray-500 text-sm">
+                                暂无数据
+                              </div>
+                            );
+                          }
+
+                          const isExpanded = expandedSheetChars[activeChar];
+                          const displayedEntries = isExpanded ? charData : charData.slice(0, 3);
+
+                          // 调试：打印列定义加载情况
+                          console.log('JyutDict columns loaded:', jyutdictColumns.length);
+                          console.log('Sample columns:', jyutdictColumns.slice(0, 5));
+                          
+                          // 获取列定义映射
+                          const columnMap = jyutdictColumns.reduce((acc, col) => {
+                            acc[col.col] = col;
+                            return acc;
+                          }, {} as Record<string, JyutdictColumn>);
+                          
+                          // 调试：打印列映射
+                          console.log('Column map keys:', Object.keys(columnMap));
+
+                          return (
+                            <div className="space-y-2">
+                              {displayedEntries.map((entry, index) => {
+                                // 调试：打印条目数据
+                                console.log('Processing entry:', entry.id, entry);
+                                
+                                // 获取各地发音（基于 is_city === 1 的列定义）
+                                const allCityEntries = Object.entries(entry).filter(([key]) => {
+                                  const column = columnMap[key];
+                                  return column && column.is_city === 1;
+                                });
+                                
+                                console.log('All city columns for this entry:', allCityEntries);
+                                
+                                const regionalPronunciations = allCityEntries
+                                  .filter(([key, value]) => {
+                                    const hasValue = value && value !== '' && value !== '_';
+                                    console.log(`${key}: "${value}", hasValue: ${hasValue}`);
+                                    return hasValue;
+                                  })
+                                  .map(([key, value]) => {
+                                    const column = columnMap[key];
+                                    return {
+                                      key,
+                                      value: String(value),
+                                      column
+                                    };
+                                  });
+                                
+                                console.log('Final regional pronunciations:', regionalPronunciations);
+
+                                return (
+                                  <div key={entry.id || `${activeChar}-${index}`} className="bg-white border border-amber-200 rounded p-3">
+                                    <div className="flex items-start gap-2 mb-2">
+                                      <div className="font-medium text-gray-900">
+                                        {entry.繁 || activeChar}
+                                      </div>
+                                      {entry.綜 && (
+                                        <div className="text-sm text-gray-600 font-mono">
+                                          {entry.綜}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {entry.釋 && (
+                                      <div className="text-xs text-gray-600 mb-2">
+                                        {entry.釋}
+                                      </div>
+                                    )}
+                                    
+                                    {/* 各地发音 */}
+                                    {regionalPronunciations.length > 0 && (
+                                      <div className="mt-2">
+                                        <div className="text-xs text-gray-600">
+                                          <div className="flex flex-wrap gap-1">
+                                            {/* 显示前12个或全部（如果已展开） */}
+                                            {(expandedSheetChars[`${activeChar}-${index}`] ? regionalPronunciations : regionalPronunciations.slice(0, 12)).map(({ key, value, column }, idx) => {
+                                              const locationName = column.sub ? `${column.city}(${column.sub})` : column.city;
+                                              return (
+                                                <span 
+                                                  key={`${key}-${idx}`} 
+                                                  className="px-1 py-0.5 rounded text-xs border"
+                                                  style={{
+                                                    backgroundColor: 'transparent',
+                                                    borderColor: column.color || '#d1d5db',
+                                                    color: column.color ? '#1f2937' : '#4b5563'
+                                                  }}
+                                                  title={`${column.fullname || locationName}: ${value}`}
+                                                >
+                                                  <span style={{ color: column.color || '#6b7280' }} className="font-medium">
+                                                    {locationName || key}
+                                                  </span>
+                                                  <span className="font-mono ml-1">
+                                                    {value}
+                                                  </span>
+                                                </span>
+                                              );
+                                            })}
+                                          </div>
+                                          {/* 展开/收起按钮 */}
+                                          {regionalPronunciations.length > 12 && (
+                                            <button
+                                              onClick={() => setExpandedSheetChars(prev => ({
+                                                ...prev,
+                                                [`${activeChar}-${index}`]: !prev[`${activeChar}-${index}`]
+                                              }))}
+                                              className="text-amber-600 hover:text-amber-800 text-xs mt-1 underline"
+                                            >
+                                              {expandedSheetChars[`${activeChar}-${index}`] 
+                                                ? '收起' 
+                                                : `+${regionalPronunciations.length - 12}更多地区发音...`
+                                              }
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {/* 展开/收起按钮 */}
+                              {charData.length > 3 && (
+                                <div className="text-center">
+                                  <button
+                                    onClick={() => setExpandedSheetChars(prev => ({
+                                      ...prev,
+                                      [activeChar]: !prev[activeChar]
+                                    }))}
+                                    className="text-amber-600 hover:text-amber-800 text-xs underline"
+                                  >
+                                    {isExpanded 
+                                      ? '收起' 
+                                      : `还有 ${charData.length - 3} 个条目，点击查看更多...`
+                                    }
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    <div className="mt-3 pt-2 border-t border-amber-200">
+                      <p className="text-xs text-amber-700">
+                        <strong>提示：</strong>以上内容来自泛粤典，仅供参考。请根据您的方言点和使用场景进行调整。
+                      </p>
+                    </div>
                   </div>
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      解释
-                    </label>
-                    <Textarea
-                      placeholder="解释例句的含义和用法&#10;支持多行详细说明"
-                      value={example.explanation}
-                      onChange={(e) => {
-                        const newExamples = [...formData.examples];
-                        newExamples[index].explanation = e.target.value;
-                        updateFormData('examples', newExamples);
-                      }}
-                      className="min-h-[80px]"
-                      rows={3}
-                    />
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <BookOpen className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm mb-2">还没有查询泛粤典资料</p>
+                    <p className="text-xs text-gray-400">点击上方按钮查询相关字音释义信息</p>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      使用场景
-                    </label>
-                    <Input
-                      placeholder="如：日常对话、商务场合等"
-                      value={example.scenario}
-                      onChange={(e) => {
-                        const newExamples = [...formData.examples];
-                        newExamples[index].scenario = e.target.value;
-                        updateFormData('examples', newExamples);
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
 
-            {/* Pronunciation */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                发音信息 *
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  placeholder="粤拼（扩展粤拼）"
-                  value={formData.pronunciation.phonetic_notation}
-                  onChange={(e) => updateFormData('pronunciation', {
-                    ...formData.pronunciation,
-                    phonetic_notation: e.target.value
-                  })}
-                />
-                <select
-                  className="border border-gray-300 rounded px-3 py-2"
-                  value={formData.pronunciation.notation_system}
-                  onChange={(e) => updateFormData('pronunciation', {
-                    ...formData.pronunciation,
-                    notation_system: e.target.value as 'jyutping++'
-                  })}
-                >
-                  <option value="jyutping++">扩展粤拼</option>
-                </select>
+            {/* 🗣️ 发音信息区域 */}
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Mic className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">发音信息</h3>
+                    <p className="text-sm text-gray-600">记录准确的粤语发音，帮助用户学习正确发音</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      粤拼发音 <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="例如：jam2 caa4"
+                      value={formData.pronunciation.phonetic_notation}
+                      onChange={(e) => updateFormData('pronunciation', {
+                        ...formData.pronunciation,
+                        phonetic_notation: e.target.value
+                      })}
+                      className="font-mono"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      使用扩展粤拼标注发音，支持声调数字
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      标注系统
+                    </label>
+                    <select
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      value={formData.pronunciation.notation_system}
+                      onChange={(e) => updateFormData('pronunciation', {
+                        ...formData.pronunciation,
+                        notation_system: e.target.value as 'jyutping++'
+                      })}
+                    >
+                      <option value="jyutping++">扩展粤拼</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 📚 词条释义区域 */}
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <BookOpen className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">词条释义</h3>
+                    <p className="text-sm text-gray-600">详细描述这个词条的含义和用法说明</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                {/* Definition */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    释义 <span className="text-red-500">*</span>
+                  </label>
+                  <Textarea
+                    placeholder="请输入词条的释义&#10;支持多行输入，可详细描述词条的含义、用法等"
+                    value={formData.definition}
+                    onChange={(e) => updateFormData('definition', e.target.value)}
+                    className="mb-2 min-h-[100px]"
+                    rows={4}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    可以分段描述不同的含义，支持换行
+                  </p>
+                </div>
+
+                {/* Usage Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    使用说明
+                  </label>
+                  <Textarea
+                    placeholder="描述使用语境、注意事项等&#10;例如：&#10;• 用于日常对话&#10;• 正式场合避免使用&#10;• 地区使用差异等"
+                    value={formData.usage_notes}
+                    onChange={(e) => updateFormData('usage_notes', e.target.value)}
+                    className="min-h-[100px]"
+                    rows={4}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    详细说明使用场景、注意事项、地区差异等，支持换行
+                  </p>
+                </div>
+
+                {/* Formality Level and Frequency */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      正式程度
+                    </label>
+                    <select
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      value={formData.formality_level}
+                      onChange={(e) => updateFormData('formality_level', e.target.value)}
+                    >
+                      <option value="">请选择</option>
+                      <option value="formal">正式</option>
+                      <option value="neutral">中性</option>
+                      <option value="informal">非正式</option>
+                      <option value="slang">俚语</option>
+                      <option value="vulgar">粗俗</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      使用频率
+                    </label>
+                    <select
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      value={formData.frequency}
+                      onChange={(e) => updateFormData('frequency', e.target.value)}
+                    >
+                      <option value="">请选择</option>
+                      <option value="common">常见</option>
+                      <option value="uncommon">不常见</option>
+                      <option value="rare">罕见</option>
+                      <option value="obsolete">过时</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 💬 例句区域 */}
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">使用例句</h3>
+                      <p className="text-sm text-gray-600">添加真实的使用场景例句，帮助用户理解词条用法</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateExamples}
+                      disabled={aiLoading}
+                    >
+                      {aiLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-1" />
+                      )}
+                      AI 生成
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        examples: [...prev.examples, { sentence: '', explanation: '', scenario: '' }]
+                      }));
+                    }}>
+                      + 添加例句
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                {formData.examples.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm">还没有例句，点击上方按钮添加或生成例句</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {formData.examples.map((example, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-medium text-gray-700">例句 #{index + 1}</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const newExamples = formData.examples.filter((_, i) => i !== index);
+                              updateFormData('examples', newExamples);
+                            }}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              例句内容
+                            </label>
+                            <Textarea
+                              placeholder="请输入完整的例句&#10;支持多行输入"
+                              value={example.sentence}
+                              onChange={(e) => {
+                                const newExamples = [...formData.examples];
+                                newExamples[index].sentence = e.target.value;
+                                updateFormData('examples', newExamples);
+                              }}
+                              className="min-h-[80px]"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              中文解释
+                            </label>
+                            <Textarea
+                              placeholder="解释例句的含义和用法&#10;支持多行详细说明"
+                              value={example.explanation}
+                              onChange={(e) => {
+                                const newExamples = [...formData.examples];
+                                newExamples[index].explanation = e.target.value;
+                                updateFormData('examples', newExamples);
+                              }}
+                              className="min-h-[80px]"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              使用场景
+                            </label>
+                            <Input
+                              placeholder="如：日常对话、商务场合等"
+                              value={example.scenario}
+                              onChange={(e) => {
+                                const newExamples = [...formData.examples];
+                                newExamples[index].scenario = e.target.value;
+                                updateFormData('examples', newExamples);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

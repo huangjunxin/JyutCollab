@@ -37,11 +37,7 @@ const ExampleSchema = z.object({
   })),
 });
 
-const SpellingSchema = z.object({
-  isCorrect: z.boolean(),
-  suggestions: z.array(z.string()),
-  explanation: z.string(),
-});
+
 
 // 主题分类功能 - 直接分类到三级主题
 export async function categorizeExpression(
@@ -462,69 +458,7 @@ export async function generateExamples(
   }
 }
 
-// 拼写检查功能
-export async function checkSpelling(expression: string, region: string = '香港'): Promise<{
-  isCorrect: boolean;
-  suggestions: string[];
-  explanation: string;
-}> {
-  try {
-    const prompt = `请检查以下${region}粤语表达的拼写是否正确。
 
-表达：${expression}
-地区：${region}
-
-请检查：
-1. 字符是否正确
-2. 是否符合该地区的书写习惯
-3. 是否有常见的错字或别字
-4. 如果有错误，提供正确的建议
-
-返回格式：
-- isCorrect: 是否正确
-- suggestions: 如果有错误，提供1-3个修正建议
-- explanation: 解释原因
-
-请返回JSON格式。`;
-
-    const completion = await openai.chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: "你是一个粤语文字专家，熟悉各地粤语的书写规范和常见错误。"
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-    });
-
-    const result = completion.choices[0]?.message?.content;
-    if (!result) {
-      throw new Error('No response from AI');
-    }
-
-    const parsed = SpellingSchema.parse(JSON.parse(result));
-    
-    // 确保建议和解释文本转换为香港繁体
-    return {
-      ...parsed,
-      suggestions: parsed.suggestions.map(s => convertToHongKongTraditional(s)),
-      explanation: convertToHongKongTraditional(parsed.explanation)
-    };
-  } catch (error) {
-    console.error('Error checking spelling:', error);
-    return {
-      isCorrect: true,
-      suggestions: [],
-      explanation: convertToHongKongTraditional('拼写检查暂时不可用')
-    };
-  }
-}
 
 // 根据三级主题ID获取完整的主题层级 - 从数据库查询
 export async function getThemeHierarchy(themeIdL3: number): Promise<{

@@ -243,7 +243,7 @@ CREATE INDEX idx_examples_expression ON expression_examples(expression_id);
 CREATE TABLE ai_suggestions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   expression_id UUID REFERENCES expressions(id) ON DELETE CASCADE,
-  suggestion_type VARCHAR(30) NOT NULL, -- 'theme_classification', 'definition', 'example', 'spelling_check'
+  suggestion_type VARCHAR(30) NOT NULL, -- 'theme_classification', 'definition', 'example'
   original_content TEXT,            -- 原始内容
   suggested_content TEXT,           -- AI建议内容
   confidence_score DECIMAL(3,2),
