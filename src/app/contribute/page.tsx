@@ -542,7 +542,7 @@ export default function ContributePage() {
                 
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <p className="text-xs text-gray-600">
-                    <strong>说明：</strong>为保持粤语文化的传统性和准确性，所有词条将优先以香港繁体字形式存储。系统会自动将简体字转换为相应的繁体字。
+                    <strong>说明：</strong>为保持粤语词条收录的准确性，所有词条将优先以香港繁体字形式存储。系统会自动将简体字转换为相应的繁体字。
                   </p>
                 </div>
               </div>

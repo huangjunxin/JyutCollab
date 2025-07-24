@@ -59,7 +59,7 @@ export default function Home() {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               <div>
-                <div className="text-3xl font-bold text-cantonese-600">2,847</div>
+                <div className="text-3xl font-bold text-cantonese-600">7,555</div>
                 <div className="text-sm text-muted-foreground">粤语表达</div>
               </div>
               <div>
@@ -67,7 +67,7 @@ export default function Home() {
                 <div className="text-sm text-muted-foreground">贡献者</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-cantonese-600">6</div>
+                <div className="text-3xl font-bold text-cantonese-600">3</div>
                 <div className="text-sm text-muted-foreground">方言地区</div>
               </div>
               <div>
@@ -96,7 +96,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold mb-3">跨方言对比</h3>
               <p className="text-muted-foreground">
-                支持广州话、香港粤语、台山话、海外粤语等多个方言地区，
+                支持广州话、香港话、台山话等多个方言点，
                 让你了解同一表达在不同地区的差异。
               </p>
             </div>
@@ -118,8 +118,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold mb-3">社区驱动</h3>
               <p className="text-muted-foreground">
-                开放的贡献机制，专业的审核流程，让每个热爱粤语的人
-                都能参与到文化传承中来。
+                开放的贡献机制，专业的审核流程，让每个热爱粤语的人都能参与到文化传承中来。
               </p>
             </div>
           </div>
@@ -145,25 +144,25 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                text: "饮茶",
-                region: "香港粤语",
-                definition: "去茶楼喝茶吃点心，是传统的休闲娱乐活动",
-                contributor: "粤语达人",
-                time: "2小时前"
+                text: "就快",
+                region: "广州话",
+                definition: "將要；快要。你間屋～搞好囉噃。（你的房子快搞好了喔。）│你碟菜～炒好嘞。（你的那碟菜快要炒好了。）",
+                contributor: "Jixzjeng",
+                time: "2025/07/24"
               },
               {
-                text: "打边炉",
+                text: "啱啱",
                 region: "广州话", 
-                definition: "围在一起吃火锅，通常指家庭聚餐",
-                contributor: "文化传承者",
-                time: "4小时前"
+                definition: "剛剛。我～落飛機。（我剛剛下飛機。）",
+                contributor: "Jixzjeng",
+                time: "2025/07/24"
               },
               {
-                text: "扑水",
-                region: "台山话",
-                definition: "游泳，在水中游泳嬉戏",
-                contributor: "台山仔",
-                time: "6小时前"
+                text: "咗（唨）",
+                region: "广州话",
+                definition: "表示動作等已完成（放在表示動作等的詞語後面）；了。佢嚟～兩個星期度。（他來了大約兩個星期。）│個樽掉～喇。（那瓶子扔掉了。）│你肥～好多噃。（你胖了許多啊。）",
+                contributor: "Jixzjeng",
+                time: "2025/07/24"
               }
             ].map((item, index) => (
               <div key={index} className="bg-background p-6 rounded-lg border">
