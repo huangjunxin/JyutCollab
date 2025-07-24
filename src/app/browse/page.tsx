@@ -13,6 +13,7 @@ import Link from 'next/link';
 interface Expression {
   id: string;
   text: string;
+  text_normalized?: string;
   region: string;
   theme_id_l1?: number;  // 一级主题ID
   theme_id_l2?: number;  // 二级主题ID
@@ -99,6 +100,7 @@ export default function BrowsePage() {
         .select(`
           id,
           text,
+          text_normalized,
           region,
           theme_id_l1,
           theme_id_l2,
@@ -115,7 +117,7 @@ export default function BrowsePage() {
 
       // 应用筛选条件
       if (activeSearchQuery) {
-        query = query.ilike('text', `%${activeSearchQuery}%`);
+        query = query.ilike('text_normalized', `%${activeSearchQuery}%`);
       }
       
       if (selectedRegion !== 'all') {

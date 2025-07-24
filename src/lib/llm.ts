@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { convertToHongKongTraditional } from './textConversion';
 
 // 配置OpenRouter客户端
 const openai = new OpenAI({
@@ -22,11 +23,10 @@ const ThemeSchema = z.object({
 });
 
 const DefinitionSchema = z.object({
-  definitions: z.array(z.object({
-    definition: z.string(),
-    context: z.string(),
-    formality: z.enum(['formal', 'informal', 'neutral']),
-  })),
+  definition: z.string(),
+  usage_notes: z.string(),
+  formality_level: z.enum(['formal', 'neutral', 'informal', 'slang', 'vulgar']).optional(),
+  frequency: z.enum(['common', 'uncommon', 'rare', 'obsolete']).optional(),
 });
 
 const ExampleSchema = z.object({
@@ -44,12 +44,33 @@ const SpellingSchema = z.object({
 });
 
 // 主题分类功能 - 直接分类到三级主题
-export async function categorizeExpression(expression: string, context?: string): Promise<{
+export async function categorizeExpression(
+  expression: string, 
+  context?: string,
+  referenceExpressions?: Array<{
+    text: string;
+    definition?: string;
+    usage_notes?: string;
+    region: string;
+  }>
+): Promise<{
   theme_id: number;
   explanation: string;
   confidence: number;
 }> {
   try {
+    // 构建参考词条信息
+    let referenceText = '';
+    if (referenceExpressions && referenceExpressions.length > 0) {
+      referenceText = `
+
+**参考相关词条的主题分类**：
+${referenceExpressions.map((ref, index) => `
+${index + 1}. ${ref.text}: ${ref.definition || ''}
+   (可作为分类参考，但请为当前表达选择最准确的分类)`).join('')}
+`;
+    }
+
     const themeList = `
 【人物】
 60: 一A1人稱、指代, 61: 一A2一般指稱、尊稱, 62: 一A3詈稱、貶稱
@@ -231,7 +252,7 @@ export async function categorizeExpression(expression: string, context?: string)
     const prompt = `請分析以下粤語表達，從上述三級主題分類中選擇最合適的一個分類。
 
 表達：${expression}
-${context ? `語境：${context}` : ''}
+${context ? `語境：${context}` : ''}${referenceText}
 
 請仔細分析表達的核心含義，選擇最準確的三級分類ID。
 考慮因素：
@@ -239,6 +260,7 @@ ${context ? `語境：${context}` : ''}
 2. 使用場合和語境
 3. 粤語的文化特色
 4. 詞性和語法功能
+${referenceExpressions && referenceExpressions.length > 0 ? '5. 可參考相關詞條的分類，但要確保選擇最適合當前表達的分類' : ''}
 
 請返回JSON格式，包含：
 - theme_id: 選擇的三級主題ID (60-498之間)
@@ -269,12 +291,17 @@ ${themeList}`;
     }
 
     const parsed = ThemeSchema.parse(JSON.parse(result));
-    return parsed;
+    
+    // 确保解释文本转换为香港繁体
+    return {
+      ...parsed,
+      explanation: convertToHongKongTraditional(parsed.explanation)
+    };
   } catch (error) {
     console.error('Error categorizing expression:', error);
     return {
       theme_id: 286, // 默认为"七A1过日子"
-      explanation: '分类失败，使用默认分类',
+      explanation: convertToHongKongTraditional('分类失败，使用默认分类'),
       confidence: 0.1
     };
   }
@@ -284,25 +311,48 @@ ${themeList}`;
 export async function generateDefinitions(
   expression: string, 
   region: string = '香港',
-  context?: string
-): Promise<Array<{ definition: string; context: string; formality: 'formal' | 'informal' | 'neutral' }>> {
+  context?: string,
+  referenceExpressions?: Array<{
+    text: string;
+    definition?: string;
+    usage_notes?: string;
+    region: string;
+  }>
+): Promise<{ definition: string; usage_notes: string; formality_level?: 'formal' | 'neutral' | 'informal' | 'slang' | 'vulgar'; frequency?: 'common' | 'uncommon' | 'rare' | 'obsolete' }> {
   try {
-    const prompt = `请为以下${region}粤语表达生成2-3个不同的释义。
+    // 构建参考词条信息
+    let referenceText = '';
+    if (referenceExpressions && referenceExpressions.length > 0) {
+      referenceText = `
+
+**参考相关词条**（作为生成释义的参考）：
+${referenceExpressions.map((ref, index) => `
+${index + 1}. 词条: ${ref.text} (${ref.region})
+   释义: ${ref.definition || '无'}
+   用法: ${ref.usage_notes || '无'}`).join('')}
+
+请参考以上词条的释义风格和用法说明，但要确保为当前表达生成独特和准确的内容。`;
+    }
+
+    const prompt = `请为以下${region}粤语表达生成释义和使用说明。
 
 表达：${expression}
 地区：${region}
-${context ? `语境：${context}` : ''}
+${context ? `语境：${context}` : ''}${referenceText}
 
-请考虑：
-1. 字面意思和引申含义
-2. 正式和非正式用法
-3. 不同语境下的含义变化
-4. 地区特色和文化背景
+请提供：
+1. definition: 清晰准确的释义
+2. usage_notes: 使用说明，包括语境、注意事项等
+3. formality_level: 正式程度 (formal/neutral/informal/slang/vulgar，可选)
+4. frequency: 使用频率 (common/uncommon/rare/obsolete，可选)
 
-每个释义需要包含：
-- definition: 清晰的释义
-- context: 使用场合/语境
-- formality: 正式程度 (formal/informal/neutral)
+考虑因素：
+- 字面意思和引申含义
+- 使用场合和语境限制
+- 地区特色和文化背景
+- 语言的正式程度和社会接受度
+- 在当地的使用频率
+${referenceExpressions && referenceExpressions.length > 0 ? '- 可参考相关词条但保持内容的独特性' : ''}
 
 请返回JSON格式。`;
 
@@ -311,7 +361,7 @@ ${context ? `语境：${context}` : ''}
       messages: [
         {
           role: "system",
-          content: "你是一个资深的粤语语言学家，对各地粤语方言都有深入研究。请提供准确、全面的释义。"
+          content: "你是一个资深的粤语语言学家，对各地粤语方言都有深入研究。请提供准确、全面的释义和使用说明。"
         },
         {
           role: "user",
@@ -328,14 +378,21 @@ ${context ? `语境：${context}` : ''}
     }
 
     const parsed = DefinitionSchema.parse(JSON.parse(result));
-    return parsed.definitions;
+    
+    // 确保所有文本都转换为香港繁体
+    return {
+      ...parsed,
+      definition: convertToHongKongTraditional(parsed.definition),
+      usage_notes: convertToHongKongTraditional(parsed.usage_notes),
+    };
   } catch (error) {
     console.error('Error generating definitions:', error);
-    return [{
-      definition: `${expression}的含义需要进一步确认`,
-      context: '通用',
-      formality: 'neutral'
-    }];
+    return {
+      definition: convertToHongKongTraditional(`${expression}的含义需要进一步确认`),
+      usage_notes: convertToHongKongTraditional('请根据具体语境使用'),
+      formality_level: undefined,
+      frequency: undefined
+    };
   }
 }
 
@@ -387,13 +444,20 @@ export async function generateExamples(
     }
 
     const parsed = ExampleSchema.parse(JSON.parse(result));
-    return parsed.examples;
+    
+    // 确保所有例句文本都转换为香港繁体
+    return parsed.examples.map(example => ({
+      ...example,
+      sentence: convertToHongKongTraditional(example.sentence),
+      explanation: convertToHongKongTraditional(example.explanation),
+      scenario: convertToHongKongTraditional(example.scenario),
+    }));
   } catch (error) {
     console.error('Error generating examples:', error);
     return [{
-      sentence: `${expression}的例句生成失败`,
-      explanation: '请手动添加例句',
-      scenario: '通用场景'
+      sentence: convertToHongKongTraditional(`${expression}的例句生成失败`),
+      explanation: convertToHongKongTraditional('请手动添加例句'),
+      scenario: convertToHongKongTraditional('通用场景')
     }];
   }
 }
@@ -445,13 +509,19 @@ export async function checkSpelling(expression: string, region: string = '香港
     }
 
     const parsed = SpellingSchema.parse(JSON.parse(result));
-    return parsed;
+    
+    // 确保建议和解释文本转换为香港繁体
+    return {
+      ...parsed,
+      suggestions: parsed.suggestions.map(s => convertToHongKongTraditional(s)),
+      explanation: convertToHongKongTraditional(parsed.explanation)
+    };
   } catch (error) {
     console.error('Error checking spelling:', error);
     return {
       isCorrect: true,
       suggestions: [],
-      explanation: '拼写检查暂时不可用'
+      explanation: convertToHongKongTraditional('拼写检查暂时不可用')
     };
   }
 }
@@ -525,7 +595,7 @@ export async function getThemeHierarchy(themeIdL3: number): Promise<{
 export async function batchProcessExpressions(expressions: string[]): Promise<Array<{
   expression: string;
   theme_classification: { theme_id: number; explanation: string; confidence: number };
-  definitions: Array<{ definition: string; context: string; formality: string }>;
+  definitions: { definition: string; usage_notes: string; formality_level?: 'formal' | 'neutral' | 'informal' | 'slang' | 'vulgar'; frequency?: 'common' | 'uncommon' | 'rare' | 'obsolete' };
   examples: Array<{ sentence: string; explanation: string; scenario: string }>;
 }>> {
   const results = [];
@@ -537,16 +607,29 @@ export async function batchProcessExpressions(expressions: string[]): Promise<Ar
         generateDefinitions(expression)
       ]);
       
-      // 使用第一个释义生成例句
-      const examples = definitions.length > 0 
-        ? await generateExamples(expression, definitions[0].definition)
+      // 使用释义生成例句
+      const examples = definitions.definition 
+        ? await generateExamples(expression, definitions.definition)
         : [];
 
+      // 确保所有文本都转换为香港繁体
       results.push({
-        expression,
-        theme_classification: themeResult,
-        definitions,
-        examples
+        expression: convertToHongKongTraditional(expression),
+        theme_classification: {
+          ...themeResult,
+          explanation: convertToHongKongTraditional(themeResult.explanation)
+        },
+        definitions: {
+          ...definitions,
+          definition: convertToHongKongTraditional(definitions.definition),
+          usage_notes: convertToHongKongTraditional(definitions.usage_notes)
+        },
+        examples: examples.map(example => ({
+          ...example,
+          sentence: convertToHongKongTraditional(example.sentence),
+          explanation: convertToHongKongTraditional(example.explanation),
+          scenario: convertToHongKongTraditional(example.scenario)
+        }))
       });
       
       // 避免API调用过于频繁
@@ -554,13 +637,18 @@ export async function batchProcessExpressions(expressions: string[]): Promise<Ar
     } catch (error) {
       console.error(`Error processing ${expression}:`, error);
       results.push({
-        expression,
+        expression: convertToHongKongTraditional(expression),
         theme_classification: {
           theme_id: 286,
-          explanation: '处理失败，使用默认分类',
+          explanation: convertToHongKongTraditional('处理失败，使用默认分类'),
           confidence: 0.1
         },
-        definitions: [{ definition: '处理失败', context: '通用', formality: 'neutral' }],
+        definitions: { 
+          definition: convertToHongKongTraditional('处理失败'), 
+          usage_notes: convertToHongKongTraditional('请手动添加释义和使用说明'), 
+          formality_level: undefined, 
+          frequency: undefined 
+        },
         examples: []
       });
     }

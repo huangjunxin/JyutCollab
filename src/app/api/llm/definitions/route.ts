@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateDefinitions } from '@/lib/llm';
+import { convertToHongKongTraditional } from '@/lib/textConversion';
 
 export async function POST(request: NextRequest) {
   try {
-    const { expression, region, context } = await request.json();
+    const { expression, region, context, referenceExpressions } = await request.json();
     
     if (!expression) {
       return NextResponse.json(
@@ -12,9 +13,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const definitions = await generateDefinitions(expression, region, context);
+    const definitions = await generateDefinitions(expression, region, context, referenceExpressions);
     
-    return NextResponse.json({ definitions });
+    // 强制转换LLM返回的释义和使用说明为香港繁体
+    const convertedDefinitions = {
+      ...definitions,
+      definition: convertToHongKongTraditional(definitions.definition),
+      usage_notes: convertToHongKongTraditional(definitions.usage_notes),
+    };
+    
+    return NextResponse.json(convertedDefinitions);
   } catch (error) {
     console.error('Error in definitions API:', error);
     return NextResponse.json(

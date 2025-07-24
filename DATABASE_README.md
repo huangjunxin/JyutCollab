@@ -127,6 +127,7 @@ INSERT INTO themes (name, parent_id, level) VALUES
 ```sql
 CREATE TABLE expressions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_expression_id UUID REFERENCES expressions(id), -- 父表达ID（用于方言变体继承）
   theme_id_l1 INTEGER REFERENCES themes(id), -- 一级主题ID
   theme_id_l2 INTEGER REFERENCES themes(id), -- 二级主题ID  
   theme_id_l3 INTEGER REFERENCES themes(id), -- 三级主题ID (最具体的分类)
@@ -134,13 +135,13 @@ CREATE TABLE expressions (
   text_normalized VARCHAR(500),     -- 标准化后的文本 (用于搜索)
   region VARCHAR(50) NOT NULL,      -- 地区 ('guangzhou', 'hongkong', 'taishan', 'overseas')
   definition TEXT,                  -- 释义
-  usage_notes TEXT,                 -- 使用说明/语境提示
+  usage_notes TEXT,                 -- 注释/使用说明/语境提示
   formality_level VARCHAR(20),      -- 正式程度 ('formal', 'informal', 'slang', 'vulgar')
   frequency VARCHAR(20),            -- 使用频率 ('common', 'uncommon', 'rare', 'obsolete')
   
   -- 发音信息
-  phonetic_notation VARCHAR(200),   -- 音标 (粤拼/IPA)
-  notation_system VARCHAR(20) DEFAULT 'jyutping', -- 'jyutping', 'ipa', 'yale'
+  phonetic_notation VARCHAR(200),   -- 音标 (扩展粤拼)
+  notation_system VARCHAR(20) DEFAULT 'jyutping++', -- 'jyutping++'
   audio_url TEXT,                   -- 语音文件URL
   pronunciation_verified BOOLEAN DEFAULT false, -- 发音是否经过验证
   
@@ -161,7 +162,10 @@ CREATE TABLE expressions (
   
   -- 时间戳
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- 约束：防止循环引用和自引用
+  CONSTRAINT no_self_reference CHECK (id != parent_expression_id)
 );
 
 -- 索引
@@ -171,7 +175,36 @@ CREATE INDEX idx_expressions_theme_l3 ON expressions(theme_id_l3);
 CREATE INDEX idx_expressions_region ON expressions(region);
 CREATE INDEX idx_expressions_status ON expressions(status);
 CREATE INDEX idx_expressions_contributor ON expressions(contributor_id);
-CREATE INDEX idx_expressions_text_search ON expressions USING gin(to_tsvector('simple', text || ' ' || COALESCE(definition, '')));
+CREATE INDEX idx_expressions_parent ON expressions(parent_expression_id); -- 新增索引
+
+-- **方言变体继承机制说明：**
+-- 
+-- 1. **主表达 (Main Expression)**：
+--    - parent_expression_id 为 NULL
+--    - 包含完整的词条信息（定义、主题分类、正式程度等）
+--
+-- 2. **方言变体 (Dialect Variant)**：
+--    - parent_expression_id 指向主表达的 ID
+--    - 只需要填写与主表达不同的字段
+--    - 应用层查询时可通过 LEFT JOIN 获取继承信息
+--
+-- 3. **继承字段**：
+--    - 必填字段：text, region, phonetic_notation（方言变体的核心差异）
+--    - 可选覆盖：usage_notes（可能有地区特殊说明）
+--    - 通常继承：definition, theme_id_*, formality_level, frequency
+--
+-- 4. **查询示例**：
+--    ```sql
+--    -- 获取带继承信息的表达
+--    SELECT 
+--      e.id, e.text, e.region,
+--      COALESCE(e.definition, p.definition) AS definition,
+--      COALESCE(e.usage_notes, p.usage_notes) AS usage_notes,
+--      e.phonetic_notation
+--    FROM expressions e
+--    LEFT JOIN expressions p ON e.parent_expression_id = p.id
+--    WHERE e.id = ?;
+--    ```
 
 -- 主题层级说明：
 -- theme_id_l1: 一级主题（如"饮食"、"情感"）
@@ -183,7 +216,7 @@ CREATE INDEX idx_expressions_text_search ON expressions USING gin(to_tsvector('s
 -- 2. 避免复杂的递归查询
 -- 3. 提高查询性能，无需JOIN themes表
 -- 4. 便于前端多级导航和面包屑显示
-```
+-- 5. **新增**：支持方言变体继承，减少数据冗余
 
 #### **3.2 expression_examples 表 (例句)**
 ```sql
