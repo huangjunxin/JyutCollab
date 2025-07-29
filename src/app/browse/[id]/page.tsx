@@ -124,6 +124,7 @@ export default function ExpressionDetailPage() {
   const [dialectVariants, setDialectVariants] = useState<DialectVariant[]>([]);
   const [userInteraction, setUserInteraction] = useState<UserInteraction>({ liked: false, bookmarked: false });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // 新增：方言变体表单状态
@@ -143,45 +144,67 @@ export default function ExpressionDetailPage() {
   // 获取词条详情
   useEffect(() => {
     const fetchExpression = async () => {
-      if (!expressionId) return;
-
-      const { data, error } = await supabase
-        .from('expressions')
-        .select(`
-          *,
-          contributor:users!expressions_contributor_id_fkey (
-            username,
-            display_name,
-            avatar_url
-          )
-        `)
-        .eq('id', expressionId)
-        .single();
-
-      if (error) {
-        console.error('获取词条失败:', error);
+      if (!expressionId) {
+        setError('无效的词条ID');
+        setLoading(false);
         return;
       }
 
-      setExpression(data);
+      try {
+        setLoading(true);
+        setError(null);
 
-      // 增加浏览量
-      if (data) {
-        await supabase
+        const { data, error: fetchError } = await supabase
           .from('expressions')
-          .update({ view_count: data.view_count + 1 })
-          .eq('id', expressionId);
+          .select(`
+            *,
+            contributor:users!expressions_contributor_id_fkey (
+              username,
+              display_name,
+              avatar_url
+            )
+          `)
+          .eq('id', expressionId)
+          .single();
 
-        // 记录用户浏览行为
-        if (user) {
-          await supabase
-            .from('user_interactions')
-            .upsert({
-              user_id: user.id,
-              expression_id: expressionId,
-              interaction_type: 'view'
-            });
+        if (fetchError) {
+          console.error('获取词条失败:', fetchError);
+          if (fetchError.code === 'PGRST116') {
+            // 没有找到记录
+            setError('词条不存在');
+          } else {
+            setError('加载词条时出现错误，请稍后重试');
+          }
+          setExpression(null);
+        } else {
+          setExpression(data);
+          setError(null);
+
+          // 增加浏览量
+          if (data) {
+            await supabase
+              .from('expressions')
+              .update({ view_count: data.view_count + 1 })
+              .eq('id', expressionId);
+
+            // 记录用户浏览行为
+            if (user) {
+              await supabase
+                .from('user_interactions')
+                .upsert({
+                  user_id: user.id,
+                  expression_id: expressionId,
+                  interaction_type: 'view'
+                });
+            }
+          }
         }
+      } catch (err) {
+        console.error('获取词条时发生错误:', err);
+        setError('网络错误，请检查网络连接后重试');
+        setExpression(null);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -317,10 +340,6 @@ export default function ExpressionDetailPage() {
 
     fetchRelatedExpressions();
   }, [expression, expressionId]);
-
-  useEffect(() => {
-    setLoading(false);
-  }, [expression]);
 
   const getRegionInfo = (region: string) => {
     return regions.find(r => r.value === region) || { label: region, icon: '📍' };
@@ -530,27 +549,118 @@ export default function ExpressionDetailPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded mb-4"></div>
-          <div className="h-16 bg-gray-200 rounded mb-6"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
+        {/* Back Button Skeleton */}
+        <div className="mb-6">
+          <div className="animate-pulse h-10 w-20 bg-gray-200 rounded"></div>
+        </div>
+
+        {/* Main Content Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Expression Header Skeleton */}
+            <div className="bg-white rounded-lg border p-6">
+              <div className="animate-pulse">
+                {/* Title */}
+                <div className="h-10 bg-gray-200 rounded mb-4 w-3/4"></div>
+                {/* Region Badge */}
+                <div className="h-6 bg-gray-200 rounded mb-4 w-24"></div>
+                {/* Pronunciation */}
+                <div className="p-4 bg-gray-50 rounded-lg mb-4">
+                  <div className="h-4 bg-gray-200 rounded mb-2 w-16"></div>
+                  <div className="h-6 bg-gray-200 rounded w-48"></div>
+                </div>
+                {/* Definition */}
+                <div className="space-y-2">
+                  <div className="h-6 bg-gray-200 rounded w-20"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Content Skeleton */}
+            <div className="bg-white rounded-lg border p-6">
+              <div className="animate-pulse">
+                <div className="h-6 bg-gray-200 rounded mb-4 w-32"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Theme Skeleton */}
+            <div className="bg-white rounded-lg border p-4">
+              <div className="animate-pulse">
+                <div className="h-5 bg-gray-200 rounded mb-3 w-24"></div>
+                <div className="space-y-2">
+                  <div className="h-6 bg-gray-200 rounded w-20"></div>
+                  <div className="h-6 bg-gray-200 rounded w-16 ml-4"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats Skeleton */}
+            <div className="bg-white rounded-lg border p-4">
+              <div className="animate-pulse">
+                <div className="h-5 bg-gray-200 rounded mb-3 w-20"></div>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    <div className="h-4 bg-gray-200 rounded w-8"></div>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    <div className="h-4 bg-gray-200 rounded w-8"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading indicator */}
+        <div className="flex justify-center items-center mt-8">
+          <Loader2 className="h-6 w-6 animate-spin text-cantonese-600" />
+          <span className="ml-2 text-gray-600">加载中...</span>
         </div>
       </div>
     );
   }
 
-  if (!expression) {
+  if (error || !expression) {
+    const errorMessage = error || '词条不存在';
+    const isNotFound = error === '词条不存在';
+    
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <div className="text-6xl mb-4">😟</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">词条不存在</h2>
-        <p className="text-gray-600 mb-6">抱歉，您要查看的词条可能已被删除或不存在。</p>
-        <Button asChild>
-          <Link href="/browse">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            返回浏览
-          </Link>
-        </Button>
+        <div className="text-6xl mb-4">{isNotFound ? '😟' : '😰'}</div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          {isNotFound ? '词条不存在' : '加载失败'}
+        </h2>
+        <p className="text-gray-600 mb-6">
+          {isNotFound 
+            ? '抱歉，您要查看的词条可能已被删除或不存在。' 
+            : errorMessage
+          }
+        </p>
+        <div className="space-x-4">
+          <Button asChild>
+            <Link href="/browse">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              返回浏览
+            </Link>
+          </Button>
+          {!isNotFound && (
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              重新加载
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
