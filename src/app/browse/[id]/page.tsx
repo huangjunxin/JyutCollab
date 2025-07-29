@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Heart, Bookmark, Flag, Eye, ThumbsUp, Calendar, MapPin, Hash, User, Volume2, ChevronRight, Share2, Edit3 } from 'lucide-react';
+import { ArrowLeft, Play, Heart, Bookmark, Flag, Eye, ThumbsUp, Calendar, MapPin, Hash, User, Volume2, ChevronRight, Share2, Edit3, Plus, Mic, Loader2, GitBranch, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/database';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
@@ -21,7 +23,7 @@ interface Expression {
   formality_level?: string;
   frequency?: string;
   phonetic_notation?: string;
-  notation_system?: 'jyutping' | 'ipa' | 'yale';
+  notation_system?: 'jyutping' | 'jyutping++' | 'ipa' | 'yale';
   audio_url?: string;
   pronunciation_verified?: boolean;
   contributor_id: string;
@@ -75,10 +77,9 @@ interface RelatedExpression {
 }
 
 const regions = [
-  { value: 'hongkong', label: '香港粤语', icon: '🇭🇰' },
+  { value: 'hongkong', label: '香港话', icon: '🇭🇰' },
   { value: 'guangzhou', label: '广州话', icon: '🇨🇳' },
   { value: 'taishan', label: '台山话', icon: '🏮' },
-  { value: 'overseas', label: '海外粤语', icon: '🌏' },
 ];
 
 const formalityLevels = {
@@ -106,6 +107,18 @@ export default function ExpressionDetailPage() {
   const [userInteraction, setUserInteraction] = useState<UserInteraction>({ liked: false, bookmarked: false });
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // 新增：方言变体表单状态
+  const [showVariantForm, setShowVariantForm] = useState(false);
+  const [variantFormData, setVariantFormData] = useState({
+    region: 'hongkong',
+    phonetic_notation: '',
+    usage_notes: '',
+    notation_system: 'jyutping++' as const
+  });
+  const [variantSubmitting, setVariantSubmitting] = useState(false);
+  const [variantError, setVariantError] = useState('');
+  const [variantSuccess, setVariantSuccess] = useState(false);
 
   const expressionId = params.id as string;
 
@@ -367,6 +380,70 @@ export default function ExpressionDetailPage() {
     }
   };
 
+  // 新增：处理方言变体提交
+  const handleVariantSubmit = async () => {
+    if (!user || !expression) {
+      setVariantError('请先登录');
+      return;
+    }
+
+    if (!variantFormData.phonetic_notation.trim()) {
+      setVariantError('请输入发音信息');
+      return;
+    }
+
+    setVariantSubmitting(true);
+    setVariantError('');
+
+    try {
+      const variantData = {
+        text: expression.text,
+        text_normalized: expression.text,
+        region: variantFormData.region,
+        phonetic_notation: variantFormData.phonetic_notation,
+        notation_system: variantFormData.notation_system,
+        usage_notes: variantFormData.usage_notes || null,
+        contributor_id: user.id,
+        status: 'pending',
+        parent_expression_id: expression.id, // 设置为方言变体
+      };
+
+      const { data, error } = await supabase
+        .from('expressions')
+        .insert([variantData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setVariantSuccess(true);
+      setShowVariantForm(false);
+      
+      // 重置表单
+      setVariantFormData({
+        region: 'hongkong',
+        phonetic_notation: '',
+        usage_notes: '',
+        notation_system: 'jyutping++'
+      });
+
+      // 3秒后隐藏成功消息
+      setTimeout(() => setVariantSuccess(false), 3000);
+    } catch (err) {
+      setVariantError('提交失败，请稍后重试');
+    } finally {
+      setVariantSubmitting(false);
+    }
+  };
+
+  // 新增：更新方言变体表单数据
+  const updateVariantFormData = (field: string, value: string) => {
+    setVariantFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -528,6 +605,173 @@ export default function ExpressionDetailPage() {
                 </Badge>
               )}
             </div>
+          </div>
+
+          {/* Quick Dialect Variant Form */}
+          <div className="bg-white rounded-lg border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <GitBranch className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">添加方言变体</h3>
+                  <p className="text-sm text-gray-600">为此词条贡献您方言点的发音和用法说明</p>
+                </div>
+              </div>
+              
+              {!user ? (
+                <Link href="/auth/login">
+                  <Button size="sm" className="bg-cantonese-600 hover:bg-cantonese-700">
+                    登录贡献
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowVariantForm(!showVariantForm);
+                    setVariantError('');
+                  }}
+                >
+                  {showVariantForm ? (
+                    <>
+                      <X className="h-4 w-4 mr-1" />
+                      取消
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-1" />
+                      添加变体
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* Success Message */}
+            {variantSuccess && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600" />
+                  <p className="text-sm text-green-800">
+                    方言变体已提交！审核通过后将会显示在此词条下。
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Login Prompt */}
+            {!user && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <User className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900">分享您的方言知识</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      登录后即可为此词条添加您方言点的发音和用法说明，帮助其他用户学习粤语的地区差异。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Variant Form */}
+            {user && showVariantForm && (
+              <div className="space-y-4">
+                {variantError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">{variantError}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Region Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <MapPin className="inline h-4 w-4 mr-1" />
+                      方言点 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      value={variantFormData.region}
+                      onChange={(e) => updateVariantFormData('region', e.target.value)}
+                    >
+                      {regions.map(region => (
+                        <option key={region.value} value={region.value}>
+                          {region.icon} {region.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Phonetic Notation */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Mic className="inline h-4 w-4 mr-1" />
+                      粤拼发音 <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="例如：dim2 gaai2"
+                      value={variantFormData.phonetic_notation}
+                      onChange={(e) => updateVariantFormData('phonetic_notation', e.target.value)}
+                      className="font-mono"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      使用扩展粤拼标注您方言点的发音
+                    </p>
+                  </div>
+                </div>
+
+                {/* Usage Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    用法差异说明（可选）
+                  </label>
+                  <Textarea
+                    placeholder="描述此词条在您方言点的特殊用法、语境差异等&#10;例如：&#10;• 在本地更常用于...&#10;• 与其他地区用法的区别&#10;• 特殊的使用场景等"
+                    value={variantFormData.usage_notes}
+                    onChange={(e) => updateVariantFormData('usage_notes', e.target.value)}
+                    className="min-h-[80px]"
+                    rows={3}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    如果此词条在您的方言点有特殊的用法或使用场景，请详细说明
+                  </p>
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex items-center justify-end pt-2">
+                  <Button
+                    onClick={handleVariantSubmit}
+                    disabled={variantSubmitting || !variantFormData.phonetic_notation.trim()}
+                    className="bg-cantonese-600 hover:bg-cantonese-700"
+                  >
+                    {variantSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        提交中...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        提交方言变体
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                  <p className="text-xs text-amber-700">
+                    <strong>提示：</strong>方言变体将继承原词条的主题分类，主要记录不同方言点的发音差异和用法特点。
+                    提交后需要审核，审核通过后会显示在此词条的方言变体列表中。
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Examples */}

@@ -759,7 +759,7 @@ export default function ContributePage() {
                 粤语表达 <span className="text-red-500">*</span>
               </label>
               <Input
-                placeholder="例如：饮茶"
+                placeholder="例如：點解"
                 value={formData.text}
                 onChange={(e) => handleTextChange(e.target.value)}
                 className="text-lg"
@@ -1677,7 +1677,7 @@ export default function ContributePage() {
                       粤拼发音 <span className="text-red-500">*</span>
                     </label>
                     <Input
-                      placeholder="例如：jam2 caa4"
+                      placeholder="例如：dim2 gaai2"
                       value={formData.pronunciation.phonetic_notation}
                       onChange={(e) => updateFormData('pronunciation', {
                         ...formData.pronunciation,
