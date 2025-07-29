@@ -690,8 +690,9 @@ export default function ExpressionDetailPage() {
             </div>
           </div>
 
-          {/* Quick Dialect Variant Form */}
-          <div className="bg-white rounded-lg border p-6">
+          {/* Quick Dialect Variant Form - Only show when there are no existing variants */}
+          {dialectVariants.length === 0 && (
+            <div className="bg-white rounded-lg border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-100 rounded-lg">
@@ -884,18 +885,51 @@ export default function ExpressionDetailPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* Dialect Variants */}
           {dialectVariants.length > 0 && (
             <div className="bg-white rounded-lg border p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <GitBranch className="h-5 w-5 text-green-600" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <GitBranch className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">方言变体</h3>
+                    <p className="text-sm text-gray-600">此词条在不同方言点的发音和用法</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">方言变体</h3>
-                  <p className="text-sm text-gray-600">此词条在不同方言点的发音和用法</p>
-                </div>
+                
+                {/* Add Variant Button - Only show when there are existing variants */}
+                {!user ? (
+                  <Link href="/auth/login">
+                    <Button size="sm" className="bg-cantonese-600 hover:bg-cantonese-700">
+                      登录贡献
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowVariantForm(!showVariantForm);
+                      setVariantError('');
+                    }}
+                  >
+                    {showVariantForm ? (
+                      <>
+                        <X className="h-4 w-4 mr-1" />
+                        取消
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-1" />
+                        添加变体
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
               
               <div className="space-y-4">
@@ -967,6 +1001,140 @@ export default function ExpressionDetailPage() {
                 })}
               </div>
               
+              {/* Success Message */}
+              {variantSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <p className="text-sm text-green-800">
+                      方言变体已提交！审核通过后将会显示在此词条下。
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Variant Form - Embedded in the variants section */}
+              {user && showVariantForm && (
+                <div className="space-y-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  {/* Base Expression Info */}
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-1.5 bg-blue-100 rounded-full">
+                        <GitBranch className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <h4 className="text-sm font-medium text-blue-900">基础词条信息</h4>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-semibold text-blue-800">{expression.text}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {regionInfo.icon} {regionInfo.label}
+                        </Badge>
+                      </div>
+                      {expression.phonetic_notation && (
+                        <p className="text-sm text-blue-700 font-mono">
+                          原发音：[{expression.phonetic_notation}]
+                        </p>
+                      )}
+                      {expression.definition && (
+                        <p className="text-sm text-blue-700">
+                          <strong>释义：</strong>{expression.definition.substring(0, 100)}{expression.definition.length > 100 ? '...' : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {variantError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-600">{variantError}</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Region Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <MapPin className="inline h-4 w-4 mr-1" />
+                        方言点 <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        value={variantFormData.region}
+                        onChange={(e) => updateVariantFormData('region', e.target.value)}
+                      >
+                        {regions.map(region => (
+                          <option key={region.value} value={region.value}>
+                            {region.icon} {region.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Phonetic Notation */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Mic className="inline h-4 w-4 mr-1" />
+                        粤拼发音 <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        placeholder="例如：dim2 gaai2"
+                        value={variantFormData.phonetic_notation}
+                        onChange={(e) => updateVariantFormData('phonetic_notation', e.target.value)}
+                        className="font-mono"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        使用扩展粤拼标注您方言点的发音
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Usage Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      用法差异说明（可选）
+                    </label>
+                    <Textarea
+                      placeholder="描述此词条在您方言点的特殊用法、语境差异等。\n例如：\n• 在本地更常用于...\n• 与其他地区用法的区别\n• 特殊的使用场景等"
+                      value={variantFormData.usage_notes}
+                      onChange={(e) => updateVariantFormData('usage_notes', e.target.value)}
+                      className="min-h-[80px]"
+                      rows={3}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      如果此词条在您的方言点有特殊的用法或使用场景，请详细说明
+                    </p>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="flex items-center justify-end pt-2">
+                    <Button
+                      onClick={handleVariantSubmit}
+                      disabled={variantSubmitting || !variantFormData.phonetic_notation.trim()}
+                      className="bg-cantonese-600 hover:bg-cantonese-700"
+                    >
+                      {variantSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          提交中...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          提交方言变体
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                    <p className="text-xs text-amber-700">
+                      <strong>提示：</strong>方言变体将继承原词条的主题分类，主要记录不同方言点的发音差异和用法特点。
+                      提交后需要审核，审核通过后会显示在此词条的方言变体列表中。
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 pt-4 border-t border-green-200">
                 <p className="text-xs text-green-700">
                   <strong>提示：</strong>方言变体展示了同一词条在不同地区的发音和用法差异，
