@@ -732,7 +732,7 @@ export default function ExpressionDetailPage() {
                     用法差异说明（可选）
                   </label>
                   <Textarea
-                    placeholder="描述此词条在您方言点的特殊用法、语境差异等&#10;例如：&#10;• 在本地更常用于...&#10;• 与其他地区用法的区别&#10;• 特殊的使用场景等"
+                    placeholder="描述此词条在您方言点的特殊用法、语境差异等。\n例如：\n• 在本地更常用于...\n• 与其他地区用法的区别\n• 特殊的使用场景等"
                     value={variantFormData.usage_notes}
                     onChange={(e) => updateVariantFormData('usage_notes', e.target.value)}
                     className="min-h-[80px]"

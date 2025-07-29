@@ -511,7 +511,8 @@ export default function ContributePage() {
       return;
     }
 
-    if (!formData.definition.trim()) {
+    // 方言变体允许释义与主词条相同，因此释义字段可选
+    if (selectedAction !== 'variant' && !formData.definition.trim()) {
       setError('请输入释义');
       return;
     }
@@ -541,8 +542,9 @@ export default function ContributePage() {
         status: 'pending',
         // 根据操作类型设置不同的字段
         ...(selectedAction === 'variant' ? {
-          // 方言变体：设置父词条ID，只需要发音和用法说明
+          // 方言变体：设置父词条ID，释义和用法说明都可选
           parent_expression_id: selectedBaseExpression,
+          definition: formData.definition.trim() || null, // 允许为空
           usage_notes: formData.usage_notes || null, // 方言变体可能有特殊用法
         } : {
           // 新词条：设置完整信息
@@ -641,7 +643,8 @@ export default function ContributePage() {
         setError('请至少选择一个主题分类');
         return;
       }
-      if (!formData.definition.trim()) {
+      // 方言变体允许释义与主词条相同，因此释义字段可选
+      if (selectedAction !== 'variant' && !formData.definition.trim()) {
         setError('请输入释义');
         return;
       }
@@ -907,7 +910,7 @@ export default function ContributePage() {
                       为现有词条添加不同方言点的发音和用法说明。选择一个基础词条，然后记录您方言点的特殊发音和用法。
                     </p>
                     <div className="text-sm text-green-600 mb-4">
-                      • 继承基础词条的主题分类<br/>
+                      • 继承基础词条的主题分类和释义<br/>
                       • 只需补充发音和用法差异<br/>
                       • 减少重复工作
                     </div>
@@ -1717,43 +1720,76 @@ export default function ContributePage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">词条释义</h3>
-                    <p className="text-sm text-gray-600">详细描述这个词条的含义和用法说明</p>
+                    <p className="text-sm text-gray-600">
+                      {selectedAction === 'variant' 
+                        ? "补充方言变体的特殊含义和用法说明"
+                        : "详细描述这个词条的含义和用法说明"
+                      }
+                    </p>
                   </div>
                 </div>
+                {selectedAction === 'variant' && (
+                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <GitBranch className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-medium text-green-900 mb-2">方言变体填写指南</h4>
+                        <ul className="text-sm text-green-800 space-y-1">
+                          <li>• <strong>释义：</strong>如与基础词条含义相同，可留空；如有不同，请详细说明</li>
+                          <li>• <strong>使用说明：</strong>建议重点描述与主词条的差异，如发音特点、地区特色等</li>
+                          <li>• <strong>发音：</strong>请准确记录您方言点的发音，这是方言变体的核心价值</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="p-6 space-y-4">
                 {/* Definition */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    释义 <span className="text-red-500">*</span>
+                    释义 {selectedAction !== 'variant' && <span className="text-red-500">*</span>}
+                    {selectedAction === 'variant' && <span className="text-gray-500">(可选)</span>}
                   </label>
                   <Textarea
-                    placeholder="请输入词条的释义&#10;支持多行输入，可详细描述词条的含义、用法等"
+                    placeholder={selectedAction === 'variant' 
+                      ? "如与基础词条释义相同，可留空。如有差异，请详细说明。\n支持多行输入，可详细描述词条的含义、用法等。"
+                      : "请输入词条的释义。\n支持多行输入，可详细描述词条的含义、用法等。"
+                    }
                     value={formData.definition}
                     onChange={(e) => updateFormData('definition', e.target.value)}
                     className="mb-2 min-h-[100px]"
                     rows={4}
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    可以分段描述不同的含义，支持换行
+                    {selectedAction === 'variant' 
+                      ? "方言变体释义可以与基础词条相同。如有不同含义或用法差异，请详细说明。支持换行"
+                      : "可以分段描述不同的含义，支持换行"
+                    }
                   </p>
                 </div>
 
                 {/* Usage Notes */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    使用说明
+                    使用说明 {selectedAction === 'variant' && <span className="text-green-600">(推荐填写)</span>}
                   </label>
                   <Textarea
-                    placeholder="描述使用语境、注意事项等&#10;例如：&#10;• 用于日常对话&#10;• 正式场合避免使用&#10;• 地区使用差异等"
+                    placeholder={selectedAction === 'variant' 
+                      ? "请描述此方言变体的特殊用法或与主词条的差异。\n例如：\n• 发音差异及使用地区\n• 语境或语义的细微差别\n• 正式程度或使用频率的不同等"
+                      : "描述使用语境、注意事项等。\n例如：\n• 用于日常对话\n• 正式场合避免使用\n• 地区使用差异等"
+                    }
                     value={formData.usage_notes}
                     onChange={(e) => updateFormData('usage_notes', e.target.value)}
                     className="min-h-[100px]"
                     rows={4}
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    详细说明使用场景、注意事项、地区差异等，支持换行
+                    {selectedAction === 'variant' 
+                      ? "建议详细说明与主词条的用法差异，如发音特点、地区差异、语境不同等，支持换行"
+                      : "详细说明使用场景、注意事项、地区差异等，支持换行"
+                    }
                   </p>
                 </div>
 
@@ -1866,7 +1902,7 @@ export default function ContributePage() {
                               例句内容
                             </label>
                             <Textarea
-                              placeholder="请输入完整的例句&#10;支持多行输入"
+                              placeholder="请输入完整的例句。\n支持多行输入。"
                               value={example.sentence}
                               onChange={(e) => {
                                 const newExamples = [...formData.examples];
@@ -1882,7 +1918,7 @@ export default function ContributePage() {
                               中文解释
                             </label>
                             <Textarea
-                              placeholder="解释例句的含义和用法&#10;支持多行详细说明"
+                              placeholder="解释例句的含义和用法。\n支持多行详细说明。"
                               value={example.explanation}
                               onChange={(e) => {
                                 const newExamples = [...formData.examples];
