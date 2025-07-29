@@ -76,6 +76,23 @@ interface RelatedExpression {
   created_at: string;
 }
 
+interface DialectVariant {
+  id: string;
+  text: string;
+  region: string;
+  phonetic_notation?: string;
+  notation_system?: string;
+  usage_notes?: string;
+  like_count: number;
+  view_count: number;
+  created_at: string;
+  contributor?: {
+    username: string;
+    display_name?: string;
+    avatar_url?: string;
+  }[];
+}
+
 const regions = [
   { value: 'hongkong', label: '香港话', icon: '🇭🇰' },
   { value: 'guangzhou', label: '广州话', icon: '🇨🇳' },
@@ -104,6 +121,7 @@ export default function ExpressionDetailPage() {
   const [themes, setThemes] = useState<Theme[]>([]);
   const [examples, setExamples] = useState<Example[]>([]);
   const [relatedExpressions, setRelatedExpressions] = useState<RelatedExpression[]>([]);
+  const [dialectVariants, setDialectVariants] = useState<DialectVariant[]>([]);
   const [userInteraction, setUserInteraction] = useState<UserInteraction>({ liked: false, bookmarked: false });
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -231,6 +249,41 @@ export default function ExpressionDetailPage() {
     fetchUserInteraction();
   }, [user, expressionId]);
 
+  // 获取方言变体
+  useEffect(() => {
+    const fetchDialectVariants = async () => {
+      if (!expressionId) return;
+
+      const { data, error } = await supabase
+        .from('expressions')
+        .select(`
+          id,
+          text,
+          region,
+          phonetic_notation,
+          notation_system,
+          usage_notes,
+          like_count,
+          view_count,
+          created_at,
+          contributor:users!expressions_contributor_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .eq('status', 'approved')
+        .eq('parent_expression_id', expressionId)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setDialectVariants(data);
+      }
+    };
+
+    fetchDialectVariants();
+  }, [expressionId]);
+
   // 获取相关词条
   useEffect(() => {
     const fetchRelatedExpressions = async () => {
@@ -252,6 +305,7 @@ export default function ExpressionDetailPage() {
         `)
         .eq('status', 'approved')
         .neq('id', expressionId)
+        .is('parent_expression_id', null) // 只显示主词条，不显示方言变体
         .or(`theme_id_l1.eq.${expression.theme_id_l1},theme_id_l2.eq.${expression.theme_id_l2},theme_id_l3.eq.${expression.theme_id_l3}`)
         .order('like_count', { ascending: false })
         .limit(6);
@@ -426,6 +480,35 @@ export default function ExpressionDetailPage() {
         usage_notes: '',
         notation_system: 'jyutping++'
       });
+
+      // 重新获取方言变体列表（虽然新提交的需要审核，但万一有其他已审核的）
+      if (expressionId) {
+        const { data } = await supabase
+          .from('expressions')
+          .select(`
+            id,
+            text,
+            region,
+            phonetic_notation,
+            notation_system,
+            usage_notes,
+            like_count,
+            view_count,
+            created_at,
+            contributor:users!expressions_contributor_id_fkey (
+              username,
+              display_name,
+              avatar_url
+            )
+          `)
+          .eq('status', 'approved')
+          .eq('parent_expression_id', expressionId)
+          .order('created_at', { ascending: false });
+
+        if (data) {
+          setDialectVariants(data);
+        }
+      }
 
       // 3秒后隐藏成功消息
       setTimeout(() => setVariantSuccess(false), 3000);
@@ -682,6 +765,34 @@ export default function ExpressionDetailPage() {
             {/* Variant Form */}
             {user && showVariantForm && (
               <div className="space-y-4">
+                {/* Base Expression Info */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-1.5 bg-blue-100 rounded-full">
+                      <GitBranch className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <h4 className="text-sm font-medium text-blue-900">基础词条信息</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-semibold text-blue-800">{expression.text}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {regionInfo.icon} {regionInfo.label}
+                      </Badge>
+                    </div>
+                    {expression.phonetic_notation && (
+                      <p className="text-sm text-blue-700 font-mono">
+                        原发音：[{expression.phonetic_notation}]
+                      </p>
+                    )}
+                    {expression.definition && (
+                      <p className="text-sm text-blue-700">
+                        <strong>释义：</strong>{expression.definition.substring(0, 100)}{expression.definition.length > 100 ? '...' : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 {variantError && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{variantError}</p>
@@ -773,6 +884,97 @@ export default function ExpressionDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Dialect Variants */}
+          {dialectVariants.length > 0 && (
+            <div className="bg-white rounded-lg border p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <GitBranch className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">方言变体</h3>
+                  <p className="text-sm text-gray-600">此词条在不同方言点的发音和用法</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                {dialectVariants.map((variant) => {
+                  const regionInfo = getRegionInfo(variant.region);
+                  const contributor = variant.contributor?.[0];
+                  
+                  return (
+                    <div key={variant.id} className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-sm">
+                            {regionInfo.icon} {regionInfo.label}
+                          </Badge>
+                          {variant.phonetic_notation && (
+                            <span className="text-sm font-mono text-gray-700">
+                              [{variant.phonetic_notation}]
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>{formatDate(variant.created_at)}</span>
+                        </div>
+                      </div>
+                      
+                      {variant.usage_notes && (
+                        <div className="mb-3">
+                          <p className="text-sm font-medium text-gray-700 mb-1">用法说明：</p>
+                          <p className="text-sm text-gray-600 leading-relaxed">{variant.usage_notes}</p>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Eye className="h-3 w-3" />
+                            {variant.view_count}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ThumbsUp className="h-3 w-3" />
+                            {variant.like_count}
+                          </span>
+                        </div>
+                        
+                        {contributor && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">贡献者：</span>
+                            <div className="flex items-center gap-1">
+                              {contributor.avatar_url ? (
+                                <img
+                                  src={contributor.avatar_url}
+                                  alt="头像"
+                                  className="w-4 h-4 rounded-full"
+                                />
+                              ) : (
+                                <div className="w-4 h-4 bg-gray-200 rounded-full flex items-center justify-center">
+                                  <User className="h-2 w-2 text-gray-400" />
+                                </div>
+                              )}
+                              <span className="text-xs text-gray-600">
+                                {contributor.display_name || contributor.username}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-green-200">
+                <p className="text-xs text-green-700">
+                  <strong>提示：</strong>方言变体展示了同一词条在不同地区的发音和用法差异，
+                  有助于了解粤语的地域特色。
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Examples */}
           {examples.length > 0 && (

@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
         created_at,
         parent_expression_id
       `)
-      .eq('status', 'approved');
+      .eq('status', 'approved')
+      .is('parent_expression_id', null); // 只搜索主词条，不搜索方言变体
 
     // 多种搜索策略：
     // 1. 精确匹配

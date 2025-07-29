@@ -113,7 +113,8 @@ export default function BrowsePage() {
           view_count,
           created_at
         `)
-        .eq('status', 'approved');
+        .eq('status', 'approved')
+        .is('parent_expression_id', null); // 只显示主词条，不显示方言变体
 
       // 应用筛选条件
       if (activeSearchQuery) {
