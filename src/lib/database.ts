@@ -28,6 +28,7 @@ export const Tables = {
   EXPRESSION_EXAMPLES: 'expression_examples',
   AI_SUGGESTIONS: 'ai_suggestions',
   USER_INTERACTIONS: 'user_interactions',
+  USER_ACHIEVEMENTS: 'user_achievements',
   REPORTS: 'reports'
 } as const;
 

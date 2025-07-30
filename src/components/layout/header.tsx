@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Globe, Menu, User, LogOut, Settings } from 'lucide-react';
+import { Search, Globe, Menu, User, LogOut, Settings, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
@@ -24,6 +24,9 @@ export function Header() {
     await signOut();
   };
 
+  // 检查用户是否有审核权限
+  const canReview = user && (user.role === 'moderator' || user.role === 'admin');
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
@@ -43,9 +46,6 @@ export function Header() {
               </Link>
               <Link href="/contribute" className="text-sm font-medium transition-colors hover:text-primary">
                 贡献词条
-              </Link>
-              <Link href="/regions" className="text-sm font-medium transition-colors hover:text-primary">
-                方言对比
               </Link>
               <Link href="/about" className="text-sm font-medium transition-colors hover:text-primary">
                 关于平台
@@ -81,7 +81,7 @@ export function Header() {
             ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full border border-border bg-background/80 hover:bg-accent hover:text-accent-foreground">
                     <User className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -103,6 +103,14 @@ export function Header() {
                       <span>个人资料</span>
                     </Link>
                   </DropdownMenuItem>
+                  {canReview && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/review">
+                        <Shield className="mr-2 h-4 w-4" />
+                        <span>审核词条</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/settings">
                       <Settings className="mr-2 h-4 w-4" />

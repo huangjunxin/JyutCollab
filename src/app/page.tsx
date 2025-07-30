@@ -237,9 +237,6 @@ export default function Home() {
                 <Link href="/contribute" className="block text-muted-foreground hover:text-foreground">
                   贡献词条
                 </Link>
-                <Link href="/regions" className="block text-muted-foreground hover:text-foreground">
-                  方言对比
-                </Link>
               </div>
             </div>
             

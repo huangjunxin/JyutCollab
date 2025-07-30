@@ -587,6 +587,22 @@ export default function ContributePage() {
 
       // 发音信息已经在创建词条时直接保存到expressions表中
 
+      // 同步用户统计信息
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          await fetch('/api/user/profile/stats', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        }
+      } catch (syncError) {
+        console.error('Failed to sync user stats:', syncError);
+        // 不阻止提交成功，只是统计信息可能不会立即更新
+      }
+
       // 成功提交
       router.push(`/browse/${expression.id}?submitted=true`);
     } catch (err) {

@@ -529,3 +529,101 @@ export async function changePassword(userId: string, currentPassword: string, ne
     return { success: false, error: '更改密码时发生错误' };
   }
 }
+
+// 更新用户贡献计数
+export async function updateUserContributionCount(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 获取用户的总贡献数
+    const { data: expressions, error: expressionsError } = await supabase
+      .from(Tables.EXPRESSIONS)
+      .select('id')
+      .eq('contributor_id', userId);
+
+    if (expressionsError) {
+      console.error('Error fetching user expressions:', expressionsError);
+      return { success: false, error: '获取用户贡献数据失败' };
+    }
+
+    const contributionCount = expressions?.length || 0;
+
+    // 更新用户的贡献计数
+    const { error: updateError } = await supabase
+      .from(Tables.USERS)
+      .update({ 
+        contribution_count: contributionCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating user contribution count:', updateError);
+      return { success: false, error: '更新贡献计数失败' };
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Update contribution count error:', err);
+    return { success: false, error: '更新贡献计数时发生错误' };
+  }
+}
+
+// 更新用户审核计数
+export async function updateUserReviewCount(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 获取用户的总审核数
+    const { data: expressions, error: expressionsError } = await supabase
+      .from(Tables.EXPRESSIONS)
+      .select('id')
+      .eq('reviewer_id', userId)
+      .not('reviewed_at', 'is', null);
+
+    if (expressionsError) {
+      console.error('Error fetching user reviews:', expressionsError);
+      return { success: false, error: '获取用户审核数据失败' };
+    }
+
+    const reviewCount = expressions?.length || 0;
+
+    // 更新用户的审核计数
+    const { error: updateError } = await supabase
+      .from(Tables.USERS)
+      .update({ 
+        review_count: reviewCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating user review count:', updateError);
+      return { success: false, error: '更新审核计数失败' };
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Update review count error:', err);
+    return { success: false, error: '更新审核计数时发生错误' };
+  }
+}
+
+// 同步用户统计信息（同时更新贡献和审核计数）
+export async function syncUserStats(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const [contributionResult, reviewResult] = await Promise.all([
+      updateUserContributionCount(userId),
+      updateUserReviewCount(userId)
+    ]);
+
+    if (!contributionResult.success) {
+      return contributionResult;
+    }
+
+    if (!reviewResult.success) {
+      return reviewResult;
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('Sync user stats error:', err);
+    return { success: false, error: '同步用户统计信息时发生错误' };
+  }
+}
