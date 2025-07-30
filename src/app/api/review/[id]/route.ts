@@ -4,7 +4,7 @@ import { supabase, Tables, handleDatabaseError } from '@/lib/database';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authorization = request.headers.get('authorization');
@@ -26,7 +26,8 @@ export async function POST(
       );
     }
 
-    const expressionId = params.id;
+    const resolvedParams = await params;
+    const expressionId = resolvedParams.id;
     const body = await request.json();
     const { action, notes } = body;
 

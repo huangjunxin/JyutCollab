@@ -37,21 +37,21 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Button size="lg" asChild className="bg-cantonese-500 hover:bg-cantonese-600">
+              <Button size="lg" asChild className="bg-cantonese-500 hover:bg-cantonese-600 w-[160px]">
                 <Link href="/browse">
                   <Search className="mr-2 h-5 w-5" />
                   开始探索
                 </Link>
               </Button>
               
-              <Button size="lg" variant="outline" asChild>
+              <Button size="lg" variant="outline" asChild className="w-[160px]">
                 <Link href="/contribute">
                   <Heart className="mr-2 h-5 w-5" />
                   贡献词条
                 </Link>
               </Button>
               
-              <Button size="lg" variant="ghost" className="text-cantonese-600">
+              <Button size="lg" variant="ghost" className="text-cantonese-600 w-[160px]">
                 <Play className="mr-2 h-4 w-4" />
                 观看介绍
               </Button>
@@ -133,7 +133,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold mb-2">最新贡献</h2>
               <p className="text-muted-foreground">社区成员最近提交的粤语表达</p>
             </div>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="w-[140px]">
               <Link href="/browse">
                 查看全部
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -199,13 +199,13 @@ export default function Home() {
             让我们一起为粤语的传承和发展贡献力量。
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" asChild>
+            <Button size="lg" variant="secondary" asChild className="w-[160px]">
               <Link href="/register">
                 立即注册
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-slate-700">
+            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-slate-700 w-[160px]">
               了解更多
             </Button>
           </div>
