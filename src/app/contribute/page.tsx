@@ -161,6 +161,9 @@ export default function ContributePage() {
   // 新增：展开状态管理
   const [expandedGeneralChars, setExpandedGeneralChars] = useState<{[key: number]: boolean}>({});
   const [expandedSheetChars, setExpandedSheetChars] = useState<{[key: string]: boolean}>({});
+  
+  // 新增：自动填写发音提醒状态
+  const [showAutoFillReminder, setShowAutoFillReminder] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     text: '',
@@ -395,6 +398,9 @@ export default function ContributePage() {
           phonetic_notation: pronunciation
         }
       }));
+      
+      // 显示自动填写成功的提醒
+      setShowAutoFillReminder(true);
     } else {
       // console.log('No pronunciation found for the specified region');
     }
@@ -1944,10 +1950,16 @@ export default function ContributePage() {
                     <Input
                       placeholder="例如：dim2 gaai2"
                       value={formData.pronunciation.phonetic_notation}
-                      onChange={(e) => updateFormData('pronunciation', {
-                        ...formData.pronunciation,
-                        phonetic_notation: e.target.value
-                      })}
+                      onChange={(e) => {
+                        updateFormData('pronunciation', {
+                          ...formData.pronunciation,
+                          phonetic_notation: e.target.value
+                        });
+                        // 当用户手动修改发音时，清除自动填写提醒
+                        if (showAutoFillReminder) {
+                          setShowAutoFillReminder(false);
+                        }
+                      }}
                       className="font-mono"
                     />
                     <p className="mt-1 text-xs text-gray-500">
@@ -1986,6 +1998,23 @@ export default function ContributePage() {
                         </p>
                         <p className="text-xs text-blue-600 mt-1">
                           系统会优先使用通用字表发音，如无则使用泛粤字表发音。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 自动填写成功提醒 */}
+                {showAutoFillReminder && formData.pronunciation.phonetic_notation.trim() && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-amber-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-amber-800">
+                          已根据泛粤典数据自动填写发音信息，<span className="font-medium">仅供参考</span>。
+                        </p>
+                        <p className="text-xs text-amber-600 mt-1">
+                          请根据实际情况核对发音准确性，必要时可手动调整。
                         </p>
                       </div>
                     </div>
