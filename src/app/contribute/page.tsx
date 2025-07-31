@@ -109,9 +109,9 @@ interface FormData {
 }
 
 const regions = [
-  { value: 'hongkong', label: '香港话'},
-  { value: 'guangzhou', label: '广州话'},
-  { value: 'taishan', label: '台山话'},
+  { value: 'hongkong', label: '香港'},
+  { value: 'guangzhou', label: '广州'},
+  { value: 'taishan', label: '台山'},
 ];
 
 const steps = [
@@ -241,6 +241,165 @@ export default function ContributePage() {
     setCurrentStep(3); // 进入AI辅助步骤
   };
 
+  // 方言点映射到泛粤典地区名称
+  const getRegionMapping = (region: string): string[] => {
+    const mapping: { [key: string]: string[] } = {
+      'hongkong': ['香港'],
+      'guangzhou': ['廣州'],
+      'taishan': ['台山'],
+    };
+    return mapping[region] || [];
+  };
+
+  // 从通用字表数据中提取指定方言点的发音
+  const extractPronunciationFromGeneral = (generalData: JyutdictGeneralCharacter[], targetRegions: string[]): string => {
+    // console.log('Extracting from general data:', generalData.length, 'characters, target regions:', targetRegions);
+    
+    const pronunciations: string[] = [];
+    const queryText = formData.convertedText || formData.text;
+    
+    // 按查询文本的字符顺序处理
+    for (const queryChar of queryText) {
+      let charPronunciation = '';
+      
+      // 在generalData中查找对应的字符
+      const charData = generalData.find(char => char.字 === queryChar);
+      
+      if (charData && charData.各地 && Array.isArray(charData.各地)) {
+        for (const regionGroup of charData.各地) {
+          if (Array.isArray(regionGroup)) {
+            for (const region of regionGroup) {
+              if (region && typeof region === 'object') {
+                const regionData = region as JyutdictRegionData;
+                const locationName = regionData.管區 ? `${regionData.市}(${regionData.管區})` : regionData.市;
+                
+                // console.log('Checking region:', locationName, 'against targets:', targetRegions);
+                
+                // 检查是否匹配目标方言点
+                if (locationName && targetRegions.some(target => 
+                  locationName.includes(target) || 
+                  (regionData.市 && regionData.市.includes(target))
+                )) {
+                  // 构建粤拼发音
+                  const jyutpingPronunciation = [
+                    regionData.聲母 || '',
+                    regionData.韻核 || '',
+                    regionData.韻尾 || '',
+                    regionData.聲調 || ''
+                  ].join('').trim();
+                  
+                  // console.log('Found matching region:', locationName, 'pronunciation:', jyutpingPronunciation);
+                  
+                  if (jyutpingPronunciation) {
+                    charPronunciation = jyutpingPronunciation;
+                    break; // 找到第一个匹配的发音就停止
+                  }
+                }
+              }
+            }
+          }
+          if (charPronunciation) break; // 找到发音就停止搜索
+        }
+      }
+      
+      pronunciations.push(charPronunciation);
+    }
+    
+    // 过滤掉空字符串并组合
+    const validPronunciations = pronunciations.filter(p => p.trim() !== '');
+    // console.log('All character pronunciations:', pronunciations, 'valid:', validPronunciations);
+    
+    return validPronunciations.join(' ');
+  };
+
+  // 从泛粤字表数据中提取指定方言点的发音
+  const extractPronunciationFromSheet = (sheetData: {[key: string]: JyutdictSheetEntry[]}, targetRegions: string[]): string => {
+    // console.log('Extracting from sheet data:', Object.keys(sheetData).length, 'characters, target regions:', targetRegions);
+    
+    const pronunciations: string[] = [];
+    const queryText = formData.convertedText || formData.text;
+    
+    // 按查询文本的字符顺序处理
+    for (const char of queryText) {
+      let charPronunciation = '';
+      
+      if (sheetData[char]) {
+        const charEntries = sheetData[char];
+        for (const entry of charEntries) {
+          // 遍历所有列，查找匹配的方言点
+          for (const [key, value] of Object.entries(entry)) {
+            if (value && value !== '' && value !== '_' && typeof value === 'string') {
+              // 查找对应的列定义
+              const column = jyutdictColumns.find(col => col.col === key);
+              if (column && column.is_city === 1) {
+                const locationName = column.sub ? `${column.city}(${column.sub})` : column.city;
+                
+                // console.log('Checking sheet region:', locationName, 'value:', value, 'against targets:', targetRegions);
+                
+                // 检查是否匹配目标方言点
+                if (locationName && targetRegions.some(target => 
+                  locationName.includes(target) || 
+                  (column.city && column.city.includes(target))
+                )) {
+                  // console.log('Found matching sheet region:', locationName, 'pronunciation:', value);
+                  charPronunciation = value;
+                  break; // 找到第一个匹配的发音就停止
+                }
+              }
+            }
+          }
+          if (charPronunciation) break; // 找到发音就停止搜索
+        }
+      }
+      
+      pronunciations.push(charPronunciation);
+    }
+    
+    // 过滤掉空字符串并组合
+    const validPronunciations = pronunciations.filter(p => p.trim() !== '');
+    // console.log('All character pronunciations from sheet:', pronunciations, 'valid:', validPronunciations);
+    
+    return validPronunciations.join(' ');
+  };
+
+  // 自动填写读音
+  const autoFillPronunciation = () => {
+    if (!formData.text.trim()) return;
+    
+    const targetRegions = getRegionMapping(formData.region);
+    if (targetRegions.length === 0) return;
+    
+    // console.log('Auto-filling pronunciation for:', formData.text, 'region:', formData.region, 'target regions:', targetRegions);
+    
+    let pronunciation = '';
+    
+    // 优先从通用字表获取发音
+    if (jyutdictGeneralData.length > 0) {
+      pronunciation = extractPronunciationFromGeneral(jyutdictGeneralData, targetRegions);
+      // console.log('Found pronunciation from general data:', pronunciation);
+    }
+    
+    // 如果通用字表没有找到，尝试从泛粤字表获取
+    if (!pronunciation && Object.keys(jyutdictSheetData).length > 0) {
+      pronunciation = extractPronunciationFromSheet(jyutdictSheetData, targetRegions);
+      // console.log('Found pronunciation from sheet data:', pronunciation);
+    }
+    
+    // 如果找到了发音，更新表单
+    if (pronunciation) {
+      // console.log('Setting pronunciation:', pronunciation);
+      setFormData(prev => ({
+        ...prev,
+        pronunciation: {
+          ...prev.pronunciation,
+          phonetic_notation: pronunciation
+        }
+      }));
+    } else {
+      // console.log('No pronunciation found for the specified region');
+    }
+  };
+
   // 泛粤典API调用函数
   const queryJyutdict = async () => {
     if (!formData.convertedText && !formData.text) return;
@@ -361,6 +520,18 @@ export default function ContributePage() {
     fetchThemes();
   }, []);
 
+  // 监听泛粤典数据变化，自动填写读音
+  useEffect(() => {
+    if (jyutdictGeneralData.length > 0 || Object.keys(jyutdictSheetData).length > 0) {
+      // 延迟执行，确保数据完全加载
+      const timer = setTimeout(() => {
+        autoFillPronunciation();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [jyutdictGeneralData, jyutdictSheetData, formData.region, formData.text]);
+
   // AI 辅助功能
   const handleAIAssist = async () => {
     if (!formData.text.trim()) {
@@ -449,6 +620,68 @@ export default function ContributePage() {
       }
     } catch (err) {
       setError('AI 辅助功能暂时不可用，请手动填写');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // 生成释义
+  const handleGenerateDefinition = async () => {
+    if (!formData.text.trim()) {
+      setError('请先输入粤语表达');
+      return;
+    }
+
+    setAiLoading(true);
+    setError('');
+
+    try {
+      const regionLabel = regions.find(r => r.value === formData.region)?.label || formData.region;
+      const textForAI = formData.convertedText || formData.text;
+      
+      // 准备参考词条信息（如果选择了参考现有词条）
+      let referenceExpressions: Array<{
+        text: string;
+        definition?: string;
+        usage_notes?: string;
+        region: string;
+      }> = [];
+      if (selectedAction === 'new' && searchResults.length > 0) {
+        // 选择前3个最相关的词条作为参考
+        referenceExpressions = searchResults.slice(0, 3).map(expr => ({
+          text: expr.text,
+          definition: expr.definition,
+          usage_notes: expr.usage_notes,
+          region: expr.region
+        }));
+      }
+      
+      const response = await fetch('/api/llm/definitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          expression: textForAI, 
+          region: regionLabel, 
+          context: formData.context,
+          referenceExpressions // 传递参考词条
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const data = await response.json();
+      
+      setFormData(prev => ({
+        ...prev,
+        definition: data.definition || '',
+        usage_notes: data.usage_notes || '',
+        formality_level: data.formality_level || '',
+        frequency: data.frequency || '',
+      }));
+    } catch (err) {
+      setError('生成释义失败，请手动填写');
     } finally {
       setAiLoading(false);
     }
@@ -1524,8 +1757,8 @@ export default function ContributePage() {
                           const displayedEntries = isExpanded ? charData : charData.slice(0, 3);
 
                           // 调试：打印列定义加载情况
-                          console.log('JyutDict columns loaded:', jyutdictColumns.length);
-                          console.log('Sample columns:', jyutdictColumns.slice(0, 5));
+                          // console.log('JyutDict columns loaded:', jyutdictColumns.length);
+                          // console.log('Sample columns:', jyutdictColumns.slice(0, 5));
                           
                           // 获取列定义映射
                           const columnMap = jyutdictColumns.reduce((acc, col) => {
@@ -1534,13 +1767,13 @@ export default function ContributePage() {
                           }, {} as Record<string, JyutdictColumn>);
                           
                           // 调试：打印列映射
-                          console.log('Column map keys:', Object.keys(columnMap));
+                          // console.log('Column map keys:', Object.keys(columnMap));
 
                           return (
                             <div className="space-y-2">
                               {displayedEntries.map((entry, index) => {
                                 // 调试：打印条目数据
-                                console.log('Processing entry:', entry.id, entry);
+                                // console.log('Processing entry:', entry.id, entry);
                                 
                                 // 获取各地发音（基于 is_city === 1 的列定义）
                                 const allCityEntries = Object.entries(entry).filter(([key]) => {
@@ -1548,12 +1781,12 @@ export default function ContributePage() {
                                   return column && column.is_city === 1;
                                 });
                                 
-                                console.log('All city columns for this entry:', allCityEntries);
+                                // console.log('All city columns for this entry:', allCityEntries);
                                 
                                 const regionalPronunciations = allCityEntries
                                   .filter(([key, value]) => {
                                     const hasValue = value && value !== '' && value !== '_';
-                                    console.log(`${key}: "${value}", hasValue: ${hasValue}`);
+                                    // console.log(`${key}: "${value}", hasValue: ${hasValue}`);
                                     return hasValue;
                                   })
                                   .map(([key, value]) => {
@@ -1565,7 +1798,7 @@ export default function ContributePage() {
                                     };
                                   });
                                 
-                                console.log('Final regional pronunciations:', regionalPronunciations);
+                                // console.log('Final regional pronunciations:', regionalPronunciations);
 
                                 return (
                                   <div key={entry.id || `${activeChar}-${index}`} className="bg-white border border-amber-200 rounded p-3">
@@ -1678,14 +1911,27 @@ export default function ContributePage() {
             {/* 🗣️ 发音信息区域 */}
             <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
               <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Mic className="h-5 w-5 text-orange-600" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Mic className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">发音信息</h3>
+                      <p className="text-sm text-gray-600">记录准确的粤语发音，帮助用户学习正确发音</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">发音信息</h3>
-                    <p className="text-sm text-gray-600">记录准确的粤语发音，帮助用户学习正确发音</p>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={autoFillPronunciation}
+                    disabled={jyutdictLoading || (!jyutdictGeneralData.length && Object.keys(jyutdictSheetData).length === 0)}
+                    className="text-xs"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    自动填写
+                  </Button>
                 </div>
               </div>
               
@@ -1724,6 +1970,27 @@ export default function ContributePage() {
                     </select>
                   </div>
                 </div>
+                
+                {/* 自动填写提示 */}
+                {(jyutdictGeneralData.length > 0 || Object.keys(jyutdictSheetData).length > 0) && !formData.pronunciation.phonetic_notation && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-blue-800">
+                          已查询到泛粤典数据，可点击上方&ldquo;自动填写&rdquo;按钮自动填入
+                          <span className="font-medium">
+                            {regions.find(r => r.value === formData.region)?.label}
+                          </span>
+                          方言点的发音。
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          系统会优先使用通用字表发音，如无则使用泛粤字表发音。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1764,10 +2031,27 @@ export default function ContributePage() {
               <div className="p-6 space-y-4">
                 {/* Definition */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    释义 {selectedAction !== 'variant' && <span className="text-red-500">*</span>}
-                    {selectedAction === 'variant' && <span className="text-gray-500">(可选)</span>}
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      释义 {selectedAction !== 'variant' && <span className="text-red-500">*</span>}
+                      {selectedAction === 'variant' && <span className="text-gray-500">(可选)</span>}
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateDefinition}
+                      disabled={aiLoading || !formData.text.trim()}
+                      className="text-xs"
+                    >
+                      {aiLoading ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      AI生成
+                    </Button>
+                  </div>
                   <Textarea
                     placeholder={selectedAction === 'variant' 
                       ? "如与基础词条释义相同，可留空。如有差异，请详细说明。\n支持多行输入，可详细描述词条的含义、用法等。"
