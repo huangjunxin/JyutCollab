@@ -200,13 +200,15 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" asChild className="w-[160px]">
-              <Link href="/register">
+              <Link href="/auth/register">
                 立即注册
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-slate-700 w-[160px]">
-              了解更多
+              <Link href="/about">
+                了解更多
+              </Link>
             </Button>
           </div>
         </div>
@@ -243,14 +245,11 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4">社区</h4>
               <div className="space-y-2 text-sm">
-                <Link href="/community" className="block text-muted-foreground hover:text-foreground">
-                  社区论坛
+                <Link href="https://jyutjam.org" target="_blank" className="block text-muted-foreground hover:text-foreground">
+                  社区主页
                 </Link>
-                <Link href="/contributors" className="block text-muted-foreground hover:text-foreground">
-                  贡献者
-                </Link>
-                <Link href="/events" className="block text-muted-foreground hover:text-foreground">
-                  活动
+                <Link href="https://jyutjam.org/folisc" target="_blank" className="block text-muted-foreground hover:text-foreground">
+                  社区活动
                 </Link>
               </div>
             </div>
