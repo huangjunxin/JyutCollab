@@ -67,7 +67,7 @@ export interface Expression {
   
   contributor_id: string;
   submitted_at: string;
-  status: 'pending' | 'approved' | 'rejected' | 'needs_revision';
+  status: 'pending' | 'approved' | 'rejected' | 'revised_and_approved';
   reviewer_id?: string;
   reviewed_at?: string;
   review_notes?: string;
@@ -92,7 +92,7 @@ export interface ExpressionExample {
   example_text: string;
   translation?: string;
   context?: string;
-  source: 'user_generated' | 'ai_generated' | 'literature' | 'media';
+  source: 'user_generated' | 'ai_generated' | 'literature' | 'media' | 'moderator_revised';
   contributor_id?: string;
   created_at: string;
   is_featured: boolean;

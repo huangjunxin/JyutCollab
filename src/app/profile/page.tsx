@@ -449,8 +449,7 @@ export default function ProfilePage() {
                         className="text-xs"
                       >
                         {activity.status === 'approved' ? '已通过' : 
-                         activity.status === 'rejected' ? '已拒绝' :
-                         activity.status === 'needs_revision' ? '需修改' : '审核中'}
+                         activity.status === 'rejected' ? '已拒绝' : '审核中'}
                       </Badge>
                     </div>
                   ))

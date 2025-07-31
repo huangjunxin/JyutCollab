@@ -193,7 +193,7 @@ export const STATUS_LABELS = {
   'pending': '待审核',
   'approved': '已通过',
   'rejected': '已拒绝',
-  'needs_revision': '需修改'
+  'revised_and_approved': '已修改并通过'
 } as const;
 
 // 正式程度标签映射
@@ -225,7 +225,7 @@ export function getStatusColor(status: string): string {
     'pending': 'bg-yellow-100 text-yellow-800',
     'approved': 'bg-green-100 text-green-800',
     'rejected': 'bg-red-100 text-red-800',
-    'needs_revision': 'bg-orange-100 text-orange-800'
+    'revised_and_approved': 'bg-orange-100 text-orange-800'
   };
   
   return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';

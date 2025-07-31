@@ -150,7 +150,7 @@ CREATE TABLE expressions (
   submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
   -- 审核状态
-  status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'needs_revision'
+  status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'revised_and_approved'
   reviewer_id UUID REFERENCES users(id),
   reviewed_at TIMESTAMP WITH TIME ZONE,
   review_notes TEXT,

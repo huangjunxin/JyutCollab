@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
           display_name
         )
       `)
-      .in('status', ['pending', 'needs_revision'])
+      .in('status', ['pending'])
       .order('submitted_at', { ascending: false });
 
     if (expressionsError) {

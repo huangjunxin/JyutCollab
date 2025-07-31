@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { 
   Shield, 
   CheckCircle, 
@@ -19,7 +20,10 @@ import {
   ThumbsUp,
   Calendar,
   Filter,
-  Search
+  Search,
+  Edit,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { redirect } from 'next/navigation';
@@ -53,8 +57,20 @@ interface PendingExpression {
 }
 
 interface ReviewForm {
-  action: 'approve' | 'reject' | 'needs_revision';
+  action: 'pending' | 'approve' | 'reject' | 'revised_and_approved';
   notes: string;
+}
+
+interface EditForm {
+  text: string;
+  phonetic_notation: string;
+  definition: string;
+  usage_notes: string;
+  examples: Array<{
+    example_text: string;
+    translation: string;
+    context: string;
+  }>;
 }
 
 export default function ReviewPage() {
@@ -66,8 +82,17 @@ export default function ReviewPage() {
     action: 'approve',
     notes: ''
   });
+  const [editForm, setEditForm] = useState<EditForm>({
+    text: '',
+    phonetic_notation: '',
+    definition: '',
+    usage_notes: '',
+    examples: []
+  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'needs_revision'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // 检查用户权限
@@ -110,6 +135,95 @@ export default function ReviewPage() {
     }
   }, [user]);
 
+  // 当选择词条时，初始化编辑表单
+  useEffect(() => {
+    if (selectedExpression) {
+      setEditForm({
+        text: selectedExpression.text,
+        phonetic_notation: selectedExpression.phonetic_notation,
+        definition: selectedExpression.definition || '',
+        usage_notes: selectedExpression.usage_notes || '',
+        examples: selectedExpression.examples?.map(example => ({
+          example_text: example.example_text,
+          translation: example.translation || '',
+          context: example.context || ''
+        })) || []
+      });
+      setIsEditing(false);
+      setHasChanges(false);
+    }
+  }, [selectedExpression]);
+
+  // 检查是否有修改
+  useEffect(() => {
+    if (!selectedExpression) return;
+    
+    const hasTextChanged = editForm.text !== selectedExpression.text;
+    const hasPhoneticChanged = editForm.phonetic_notation !== selectedExpression.phonetic_notation;
+    const hasDefinitionChanged = editForm.definition !== (selectedExpression.definition || '');
+    const hasUsageNotesChanged = editForm.usage_notes !== (selectedExpression.usage_notes || '');
+    
+    const hasExamplesChanged = JSON.stringify(editForm.examples) !== 
+      JSON.stringify(selectedExpression.examples?.map(example => ({
+        example_text: example.example_text,
+        translation: example.translation || '',
+        context: example.context || ''
+      })) || []);
+    
+    setHasChanges(hasTextChanged || hasPhoneticChanged || hasDefinitionChanged || 
+                  hasUsageNotesChanged || hasExamplesChanged);
+  }, [editForm, selectedExpression]);
+
+  // 开始编辑
+  const handleStartEdit = () => {
+    setIsEditing(true);
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    if (selectedExpression) {
+      setEditForm({
+        text: selectedExpression.text,
+        phonetic_notation: selectedExpression.phonetic_notation,
+        definition: selectedExpression.definition || '',
+        usage_notes: selectedExpression.usage_notes || '',
+        examples: selectedExpression.examples?.map(example => ({
+          example_text: example.example_text,
+          translation: example.translation || '',
+          context: example.context || ''
+        })) || []
+      });
+      setIsEditing(false);
+      setHasChanges(false);
+    }
+  };
+
+  // 添加例句
+  const addExample = () => {
+    setEditForm(prev => ({
+      ...prev,
+      examples: [...prev.examples, { example_text: '', translation: '', context: '' }]
+    }));
+  };
+
+  // 删除例句
+  const removeExample = (index: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      examples: prev.examples.filter((_, i) => i !== index)
+    }));
+  };
+
+  // 更新例句
+  const updateExample = (index: number, field: 'example_text' | 'translation' | 'context', value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      examples: prev.examples.map((example, i) => 
+        i === index ? { ...example, [field]: value } : example
+      )
+    }));
+  };
+
   // 提交审核结果
   const handleSubmitReview = async () => {
     if (!selectedExpression || !user) return;
@@ -119,16 +233,27 @@ export default function ReviewPage() {
       const token = localStorage.getItem('auth_token');
       if (!token) return;
 
+      const payload = {
+        action: reviewForm.action,
+        notes: reviewForm.notes,
+        ...(reviewForm.action === 'revised_and_approved' && {
+          revised_content: {
+            text: editForm.text,
+            phonetic_notation: editForm.phonetic_notation,
+            definition: editForm.definition,
+            usage_notes: editForm.usage_notes,
+            examples: editForm.examples.filter(example => example.example_text.trim())
+          }
+        })
+      };
+
       const response = await fetch(`/api/review/${selectedExpression.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          action: reviewForm.action,
-          notes: reviewForm.notes
-        })
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -138,6 +263,8 @@ export default function ReviewPage() {
         );
         setSelectedExpression(null);
         setReviewForm({ action: 'approve', notes: '' });
+        setIsEditing(false);
+        setHasChanges(false);
         
         // 同步用户统计信息
         await fetch('/api/user/profile/stats', {
@@ -159,8 +286,7 @@ export default function ReviewPage() {
   // 过滤和搜索词条
   const filteredExpressions = pendingExpressions.filter(expression => {
     const matchesFilter = filter === 'all' || 
-      (filter === 'pending' && expression.status === 'pending') ||
-      (filter === 'needs_revision' && expression.status === 'needs_revision');
+      (filter === 'pending' && expression.status === 'pending');
     
     const matchesSearch = !searchTerm || 
       expression.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -173,8 +299,6 @@ export default function ReviewPage() {
     switch (status) {
       case 'pending':
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />待审核</Badge>;
-      case 'needs_revision':
-        return <Badge variant="outline"><AlertTriangle className="h-3 w-3 mr-1" />需修改</Badge>;
       default:
         return <Badge variant="secondary">待审核</Badge>;
     }
@@ -245,13 +369,6 @@ export default function ReviewPage() {
                     onClick={() => setFilter('pending')}
                   >
                     待审核
-                  </Button>
-                  <Button
-                    variant={filter === 'needs_revision' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilter('needs_revision')}
-                  >
-                    需修改
                   </Button>
                 </div>
                 <div className="relative flex-1">
@@ -334,49 +451,169 @@ export default function ReviewPage() {
           <div className="space-y-6">
             {selectedExpression ? (
               <div className="bg-card p-6 rounded-lg border">
-                <h3 className="text-lg font-semibold mb-4">审核词条</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">审核词条</h3>
+                  {!isEditing && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleStartEdit}
+                      className="flex items-center gap-1"
+                    >
+                      <Edit className="h-4 w-4" />
+                      编辑
+                    </Button>
+                  )}
+                </div>
                 
                 {/* 词条详情 */}
                 <div className="space-y-4 mb-6">
-                  <div>
-                    <label className="text-sm font-medium">粤语表达</label>
-                    <p className="text-lg font-semibold text-cantonese-600 mt-1">
-                      {selectedExpression.text}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium">发音</label>
-                    <p className="text-sm mt-1">{selectedExpression.phonetic_notation}</p>
-                  </div>
-                  
-                  {selectedExpression.definition && (
-                    <div>
-                      <label className="text-sm font-medium">释义</label>
-                      <p className="text-sm mt-1">{selectedExpression.definition}</p>
-                    </div>
-                  )}
-                  
-                  {selectedExpression.usage_notes && (
-                    <div>
-                      <label className="text-sm font-medium">使用说明</label>
-                      <p className="text-sm mt-1">{selectedExpression.usage_notes}</p>
-                    </div>
-                  )}
-                  
-                  {selectedExpression.examples && selectedExpression.examples.length > 0 && (
-                    <div>
-                      <label className="text-sm font-medium">例句</label>
-                      <div className="space-y-2 mt-1">
-                        {selectedExpression.examples.map((example, index) => (
-                          <div key={index} className="text-sm p-2 bg-muted/50 rounded">
-                            <p className="font-medium">{example.example_text}</p>
-                            {example.translation && (
-                              <p className="text-muted-foreground">{example.translation}</p>
-                            )}
-                          </div>
-                        ))}
+                  {isEditing ? (
+                    // 编辑模式
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium">粤语表达</label>
+                        <Input
+                          value={editForm.text}
+                          onChange={(e) => setEditForm({ ...editForm, text: e.target.value })}
+                          className="mt-1"
+                        />
                       </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium">发音</label>
+                        <Input
+                          value={editForm.phonetic_notation}
+                          onChange={(e) => setEditForm({ ...editForm, phonetic_notation: e.target.value })}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium">释义</label>
+                        <Textarea
+                          value={editForm.definition}
+                          onChange={(e) => setEditForm({ ...editForm, definition: e.target.value })}
+                          rows={3}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium">使用说明</label>
+                        <Textarea
+                          value={editForm.usage_notes}
+                          onChange={(e) => setEditForm({ ...editForm, usage_notes: e.target.value })}
+                          rows={3}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium">例句</label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addExample}
+                          >
+                            添加例句
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {editForm.examples.map((example, index) => (
+                            <div key={index} className="p-3 border rounded-lg space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">例句 {index + 1}</span>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeExample(index)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  删除
+                                </Button>
+                              </div>
+                              <Input
+                                placeholder="例句内容"
+                                value={example.example_text}
+                                onChange={(e) => updateExample(index, 'example_text', e.target.value)}
+                              />
+                              <Input
+                                placeholder="翻译（可选）"
+                                value={example.translation}
+                                onChange={(e) => updateExample(index, 'translation', e.target.value)}
+                              />
+                              <Input
+                                placeholder="语境（可选）"
+                                value={example.context}
+                                onChange={(e) => updateExample(index, 'context', e.target.value)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {hasChanges && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCancelEdit}
+                            className="flex items-center gap-1"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            取消修改
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // 查看模式
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium">粤语表达</label>
+                        <p className="text-lg font-semibold text-cantonese-600 mt-1">
+                          {selectedExpression.text}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium">发音</label>
+                        <p className="text-sm mt-1">{selectedExpression.phonetic_notation}</p>
+                      </div>
+                      
+                      {selectedExpression.definition && (
+                        <div>
+                          <label className="text-sm font-medium">释义</label>
+                          <p className="text-sm mt-1">{selectedExpression.definition}</p>
+                        </div>
+                      )}
+                      
+                      {selectedExpression.usage_notes && (
+                        <div>
+                          <label className="text-sm font-medium">使用说明</label>
+                          <p className="text-sm mt-1">{selectedExpression.usage_notes}</p>
+                        </div>
+                      )}
+                      
+                      {selectedExpression.examples && selectedExpression.examples.length > 0 && (
+                        <div>
+                          <label className="text-sm font-medium">例句</label>
+                          <div className="space-y-2 mt-1">
+                            {selectedExpression.examples.map((example, index) => (
+                              <div key={index} className="text-sm p-2 bg-muted/50 rounded">
+                                <p className="font-medium">{example.example_text}</p>
+                                {example.translation && (
+                                  <p className="text-muted-foreground">{example.translation}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -385,7 +622,7 @@ export default function ReviewPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm font-medium">审核结果</label>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-2">
                       <Button
                         variant={reviewForm.action === 'approve' ? 'default' : 'outline'}
                         size="sm"
@@ -394,6 +631,17 @@ export default function ReviewPage() {
                         <CheckCircle className="h-4 w-4 mr-1" />
                         通过
                       </Button>
+                      {hasChanges && (
+                        <Button
+                          variant={reviewForm.action === 'revised_and_approved' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setReviewForm({ ...reviewForm, action: 'revised_and_approved' })}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Save className="h-4 w-4 mr-1" />
+                          修改并通过
+                        </Button>
+                      )}
                       <Button
                         variant={reviewForm.action === 'reject' ? 'destructive' : 'outline'}
                         size="sm"
@@ -401,14 +649,6 @@ export default function ReviewPage() {
                       >
                         <X className="h-4 w-4 mr-1" />
                         拒绝
-                      </Button>
-                      <Button
-                        variant={reviewForm.action === 'needs_revision' ? 'outline' : 'outline'}
-                        size="sm"
-                        onClick={() => setReviewForm({ ...reviewForm, action: 'needs_revision' })}
-                      >
-                        <AlertTriangle className="h-4 w-4 mr-1" />
-                        需修改
                       </Button>
                     </div>
                   </div>
@@ -427,14 +667,18 @@ export default function ReviewPage() {
                   <div className="flex gap-2">
                     <Button
                       onClick={handleSubmitReview}
-                      disabled={submitting}
+                      disabled={submitting || (reviewForm.action === 'revised_and_approved' && !hasChanges)}
                       className="flex-1"
                     >
                       {submitting ? '提交中...' : '提交审核'}
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setSelectedExpression(null)}
+                      onClick={() => {
+                        setSelectedExpression(null);
+                        setIsEditing(false);
+                        setHasChanges(false);
+                      }}
                     >
                       取消
                     </Button>
